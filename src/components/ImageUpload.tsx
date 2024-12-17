@@ -77,7 +77,7 @@ export const ImageUpload = () => {
         description: "Your image has been uploaded and will be analyzed for style matching.",
       });
 
-      // Trigger style analysis (this would be implemented in a separate function)
+      // Trigger style analysis
       await analyzeStyle(publicUrl);
 
     } catch (err) {
