@@ -1,10 +1,13 @@
 project_id = "ynlepnfnhyeswtiakyve"
 
-[functions.social-connect]
-verify_jwt = true
-
-[functions.social-callback]
+[functions.analyze-product]
 verify_jwt = false
 
-[functions.social-extract]
+[functions.fetch-products]
+verify_jwt = false
+
+[functions.analyze-style]
+verify_jwt = true
+
+[functions.match-products]
 verify_jwt = true
