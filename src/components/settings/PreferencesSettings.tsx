@@ -7,15 +7,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Settings2, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-interface Preferences {
-  minMatchScore: number;
-  autoScrapeNewProducts: boolean;
-  emailNotifications: boolean;
-}
+import type { UserPreferences } from "@/types/settings";
 
 export const PreferencesSettings = () => {
-  const [preferences, setPreferences] = useState<Preferences>({
+  const [preferences, setPreferences] = useState<UserPreferences>({
     minMatchScore: 0.7,
     autoScrapeNewProducts: true,
     emailNotifications: true,
