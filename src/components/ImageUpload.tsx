@@ -5,11 +5,8 @@ import { UploadProgress } from "./upload/UploadProgress";
 import { UploadPreview } from "./upload/UploadPreview";
 import { UploadDropzone } from "./upload/UploadDropzone";
 import { ErrorDialog } from "./upload/ErrorDialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { AuthButtons } from "./AuthButtons";
+import { AnalysisProviderSelect } from "./upload/AnalysisProviderSelect";
+import { GuestAuthPrompt } from "./upload/GuestAuthPrompt";
 
 export const ImageUpload = () => {
   const [preview, setPreview] = useState<string | null>(null);
@@ -42,10 +39,8 @@ export const ImageUpload = () => {
       const fileName = `guest_${Math.random().toString(36).substring(2)}.${fileExt}`;
       const filePath = `guest/${fileName}`;
 
-      // Show upload starting
       setUploadProgress(10);
 
-      // Upload to Supabase Storage
       const { error: uploadError } = await supabase.storage
         .from('style-uploads')
         .upload(filePath, file);
@@ -54,7 +49,6 @@ export const ImageUpload = () => {
 
       setUploadProgress(90);
 
-      // Get the public URL
       const { data: { publicUrl } } = supabase.storage
         .from('style-uploads')
         .getPublicUrl(filePath);
@@ -72,32 +66,8 @@ export const ImageUpload = () => {
           description: "Create an account to save your style preferences and get personalized recommendations!",
         });
       } else {
-        // For authenticated users, save to style_uploads table
-        const { error: dbError } = await supabase
-          .from('style_uploads')
-          .insert({
-            user_id: sessionData.session.user.id,
-            image_url: publicUrl,
-            upload_type: 'user_upload',
-            image_type: 'clothing',
-            metadata: {
-              original_filename: file.name,
-              content_type: file.type,
-              size: file.size
-            }
-          });
-
-        if (dbError) throw dbError;
-
-        toast({
-          title: "Upload successful",
-          description: "Your image has been uploaded and will be analyzed for style matching.",
-        });
-
-        // Trigger style analysis with selected provider
-        await analyzeStyle(publicUrl);
+        await handleAuthenticatedUpload(publicUrl, file);
       }
-
     } catch (err) {
       console.error("Upload error:", err);
       setError(err instanceof Error ? err.message : "Failed to upload image");
@@ -111,11 +81,47 @@ export const ImageUpload = () => {
     }
   };
 
+  const handleAuthenticatedUpload = async (publicUrl: string, file: File) => {
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) return;
+
+      const { error: dbError } = await supabase
+        .from('style_uploads')
+        .insert({
+          user_id: sessionData.session.user.id,
+          image_url: publicUrl,
+          upload_type: 'user_upload',
+          image_type: 'clothing',
+          metadata: {
+            original_filename: file.name,
+            content_type: file.type,
+            size: file.size
+          }
+        });
+
+      if (dbError) throw dbError;
+
+      toast({
+        title: "Upload successful",
+        description: "Your image has been uploaded and will be analyzed for style matching.",
+      });
+
+      await analyzeStyle(publicUrl);
+    } catch (error) {
+      console.error('Error handling authenticated upload:', error);
+      toast({
+        title: "Error",
+        description: "Failed to process your upload. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const analyzeStyle = async (imageUrl: string) => {
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       if (!sessionData.session) {
-        // For guest users, show limited analysis results
         toast({
           title: "Limited Analysis",
           description: "Create an account to get full style analysis and personalized recommendations!",
@@ -133,7 +139,7 @@ export const ImageUpload = () => {
         },
       });
 
-      if (response.error) throw new Error(response.error.message);
+      if (response.error) throw response.error;
 
       toast({
         title: "Analysis complete",
@@ -151,21 +157,10 @@ export const ImageUpload = () => {
 
   return (
     <div className="w-full max-w-md mx-auto p-6 animate-fade-in">
-      <div className="mb-4">
-        <Label htmlFor="analysis-provider">Analysis Provider</Label>
-        <Select
-          value={analysisProvider}
-          onValueChange={(value: 'huggingface' | 'openai') => setAnalysisProvider(value)}
-        >
-          <SelectTrigger id="analysis-provider" className="w-full">
-            <SelectValue placeholder="Select analysis provider" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="huggingface">Hugging Face (Default)</SelectItem>
-            <SelectItem value="openai">OpenAI Vision</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      <AnalysisProviderSelect 
+        value={analysisProvider}
+        onChange={(value) => setAnalysisProvider(value)}
+      />
 
       <div className="relative border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-primary transition-colors">
         <input
@@ -194,29 +189,10 @@ export const ImageUpload = () => {
         onClose={() => setError(null)}
       />
 
-      <Dialog open={showAuthPrompt} onOpenChange={setShowAuthPrompt}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Save Your Style Preferences</DialogTitle>
-            <DialogDescription>
-              Create an account to save your style preferences, get personalized recommendations, and access your style history.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <AuthButtons />
-            <Button 
-              variant="ghost" 
-              onClick={() => setShowAuthPrompt(false)}
-              className="w-full"
-            >
-              Continue as Guest
-            </Button>
-            <p className="text-sm text-muted-foreground text-center">
-              Note: Guest uploads are temporary and will be deleted after 24 hours.
-            </p>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <GuestAuthPrompt 
+        open={showAuthPrompt}
+        onOpenChange={setShowAuthPrompt}
+      />
     </div>
   );
 };

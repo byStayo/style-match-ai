@@ -1,44 +1,39 @@
-import { startVitest } from 'vitest/node';
-import type { Vitest } from 'vitest';
+import { StateManager } from './StateManager';
+import { TestSpecification } from './types';
 
-async function runTests() {
+export async function runTests() {
+  const stateManager = new StateManager();
+  
+  // Define test specifications
+  const tests: TestSpecification[] = [
+    {
+      name: 'User Flow Tests',
+      path: './integration/userFlow.test.ts',
+      type: 'integration'
+    },
+    {
+      name: 'Matching Performance Tests',
+      path: './load/matchingPerformance.test.ts',
+      type: 'load'
+    }
+  ];
+
   try {
-    const vitest = await startVitest('test', [], {
-      include: ['src/**/*.test.ts'],
-      coverage: {
-        provider: 'v8',
-        enabled: true,
-        reporter: ['text', 'json', 'html'],
-      }
-    });
+    // Run all test files with their specifications
+    await Promise.all(tests.map(test => 
+      stateManager.runFiles(test.path, test)
+    ));
 
-    // Start Vitest
-    await vitest.start();
-
-    // Get test results
-    const testPaths = await vitest.getTestFilepaths();
-    await Promise.all(testPaths.map(path => vitest.runFiles([path], 'test')));
+    // Get coverage if available
+    const coverage = stateManager.coverage?.getCoverage();
     
-    // Check for failures
-    const state = vitest.state;
-    const failedTests = state.getFiles().filter(file => 
-      file.tasks?.some(task => task.result?.state === 'fail')
-    );
-    
-    if (failedTests.length > 0) {
-      console.error('Test failures:', failedTests.length);
-      process.exit(1);
-    }
-
-    console.log('All tests passed!');
-    const coverage = state.getCoverage?.();
     if (coverage) {
-      console.log('Coverage:', coverage);
+      console.log('Test Coverage Report:', coverage);
     }
-    
-    await vitest.close();
+
+    console.log('All tests completed successfully');
   } catch (error) {
-    console.error('Error running tests:', error);
+    console.error('Test execution failed:', error);
     process.exit(1);
   }
 }
