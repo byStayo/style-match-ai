@@ -3,8 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { LandingHero } from "@/components/landing/LandingHero";
 import { DashboardTabs } from "@/components/dashboard/DashboardTabs";
+import { ImageUpload } from "@/components/ImageUpload";
 
 const Index = () => {
   const { user, loading } = useAuth();
@@ -40,11 +40,22 @@ const Index = () => {
       </header>
       
       <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-        {!user && !loading ? (
-          <LandingHero />
-        ) : (
-          <DashboardTabs />
-        )}
+        <div className="space-y-8">
+          <section className="text-center">
+            <h2 className="text-4xl font-bold tracking-tight text-foreground sm:text-6xl">
+              Find Your Perfect Style Match
+            </h2>
+            <p className="mt-6 text-lg leading-8 text-muted-foreground">
+              Upload your style inspiration to discover perfectly matched items from your favorite stores.
+            </p>
+          </section>
+
+          <section className="bg-muted/50 rounded-lg p-8">
+            <div className="max-w-2xl mx-auto text-center">
+              <ImageUpload />
+            </div>
+          </section>
+        </div>
       </main>
     </div>
   );
