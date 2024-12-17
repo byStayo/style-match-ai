@@ -487,6 +487,23 @@ export type Database = {
             }
             Returns: unknown
           }
+      match_products: {
+        Args: {
+          query_embedding: string
+          similarity_threshold: number
+          match_count: number
+          store_filter: string[]
+        }
+        Returns: {
+          id: string
+          product_url: string
+          product_image: string
+          product_title: string
+          product_price: number
+          store_name: string
+          similarity: number
+        }[]
+      }
       sparsevec_out: {
         Args: {
           "": unknown

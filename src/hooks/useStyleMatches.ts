@@ -4,6 +4,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { ProductMatch } from "@/types/product";
 import { SortOption } from "@/components/product/ProductSort";
 
+interface MatchProductsResponse {
+  id: string;
+  product_url: string;
+  product_image: string;
+  product_title: string;
+  product_price: number;
+  store_name: string;
+  similarity: number;
+}
+
 export const useStyleMatches = () => {
   const [items, setItems] = useState<ProductMatch[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -39,21 +49,21 @@ export const useStyleMatches = () => {
         .eq('user_id', session.session.user.id)
         .eq('is_favorite', true);
 
-      const storeIds = storePrefs?.map(pref => pref.store_id) || [];
+      const storeIds = (storePrefs || []).map(pref => pref.store_id);
 
-      // Get products from preferred stores with vector similarity
+      // Call the match_products function
       const { data: matches, error } = await supabase
         .rpc('match_products', {
           query_embedding: styleUploads[0].embedding,
-          match_threshold: 0.5,
+          similarity_threshold: 0.5,
           match_count: 30,
-          store_ids: storeIds
+          store_filter: storeIds
         });
 
       if (error) throw error;
 
       // Transform matches into ProductMatch format
-      const productMatches: ProductMatch[] = matches.map(match => ({
+      const productMatches: ProductMatch[] = (matches as MatchProductsResponse[]).map(match => ({
         id: match.id,
         product_url: match.product_url,
         product_image: match.product_image,
@@ -62,7 +72,7 @@ export const useStyleMatches = () => {
         store_name: match.store_name,
         match_score: match.similarity,
         match_explanation: `This item matches your style with ${Math.round(match.similarity * 100)}% confidence`,
-        is_favorite: match.is_favorite || false
+        is_favorite: false
       }));
 
       // Sort matches based on user preference
@@ -85,7 +95,7 @@ export const useStyleMatches = () => {
       switch (sortBy) {
         case 'price':
           return a.product_price - b.product_price;
-        case 'recent':
+        case 'date':
           return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
         case 'match':
         default:
