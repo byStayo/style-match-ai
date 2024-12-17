@@ -6,10 +6,14 @@ import { SocialMediaConnect } from "@/components/SocialMediaConnect";
 import { ProfileSection } from "@/components/ProfileSection";
 import { Upload, Store, Heart, Settings } from "lucide-react";
 
-export const DashboardTabs = () => {
+interface DashboardTabsProps {
+  defaultTab?: string;
+}
+
+export const DashboardTabs = ({ defaultTab = "upload" }: DashboardTabsProps) => {
   return (
     <div className="space-y-8">
-      <Tabs defaultValue="upload" className="w-full">
+      <Tabs defaultValue={defaultTab} className="w-full">
         <TabsList className="grid w-full grid-cols-4 lg:w-[400px] mx-auto">
           <TabsTrigger value="upload" className="flex items-center gap-2">
             <Upload className="w-4 h-4" />

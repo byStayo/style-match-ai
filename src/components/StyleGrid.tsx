@@ -16,12 +16,20 @@ export const StyleGrid = () => {
 
   useEffect(() => {
     const loadMatches = async () => {
-      if (!user) return;
+      if (!user) {
+        console.log("No user found, skipping match loading");
+        return;
+      }
 
       try {
+        console.log("Loading matches for user:", user.id);
         const { data: sessionData } = await supabase.auth.getSession();
-        if (!sessionData.session) return;
+        if (!sessionData.session) {
+          console.log("No active session found");
+          return;
+        }
 
+        console.log("Invoking match-style function");
         const response = await supabase.functions.invoke('match-style', {
           body: { 
             userId: user.id,
@@ -33,16 +41,21 @@ export const StyleGrid = () => {
           },
         });
 
-        if (response.error) throw response.error;
+        if (response.error) {
+          console.error("Error from match-style function:", response.error);
+          throw response.error;
+        }
         
-        // Matches are automatically saved to product_matches table
+        console.log("Match-style response:", response.data);
+        
+        // Fetch matches after style matching
         await fetchMatches(sortBy);
 
       } catch (error) {
         console.error('Error loading style matches:', error);
         toast({
           title: "Error",
-          description: "Failed to load style matches. Please try again.",
+          description: "Failed to load style matches. Please try uploading an image first.",
           variant: "destructive",
         });
       }
@@ -60,8 +73,20 @@ export const StyleGrid = () => {
     return <ProductGridSkeleton />;
   }
 
+  if (!user) {
+    return (
+      <EmptyProductGrid 
+        message="Please sign in to view your style matches"
+      />
+    );
+  }
+
   if (items.length === 0) {
-    return <EmptyProductGrid />;
+    return (
+      <EmptyProductGrid 
+        message="Upload some images to get personalized style matches"
+      />
+    );
   }
 
   return (
