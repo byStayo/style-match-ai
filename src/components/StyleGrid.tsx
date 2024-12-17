@@ -1,14 +1,13 @@
 import { useState, useEffect } from "react";
-import { ProductCard } from "./product/ProductCard";
 import { ProductSort } from "./product/ProductSort";
 import { ProductFilters, FilterOptions } from "./product/ProductFilters";
 import { ProductGridSkeleton } from "./product/ProductGridSkeleton";
 import { EmptyProductGrid } from "./product/EmptyProductGrid";
+import { ProductGrid } from "./product/ProductGrid";
+import { ProductPagination } from "./product/ProductPagination";
 import { useStyleMatches } from "@/hooks/useStyleMatches";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { SortOption } from "@/components/product/ProductSort";
 
 const ITEMS_PER_PAGE = 9; // Show 9 items per page (3x3 grid)
@@ -122,50 +121,13 @@ export const StyleGrid = () => {
         <ProductSort sortBy={sortBy} onSort={setSortBy} />
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {paginatedItems.map((item) => (
-          <ProductCard 
-            key={item.id} 
-            item={item} 
-            onFavorite={toggleFavorite}
-          />
-        ))}
-      </div>
-
-      {totalPages > 1 && (
-        <div className="flex justify-center items-center gap-2 mt-8">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => handlePageChange(currentPage - 1)}
-            disabled={currentPage === 1}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          
-          <div className="flex items-center gap-2">
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-              <Button
-                key={page}
-                variant={currentPage === page ? "default" : "outline"}
-                size="sm"
-                onClick={() => handlePageChange(page)}
-              >
-                {page}
-              </Button>
-            ))}
-          </div>
-
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => handlePageChange(currentPage + 1)}
-            disabled={currentPage === totalPages}
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-      )}
+      <ProductGrid items={paginatedItems} onFavorite={toggleFavorite} />
+      
+      <ProductPagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={handlePageChange}
+      />
     </div>
   );
 };
