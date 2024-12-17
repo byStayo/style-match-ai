@@ -29,26 +29,7 @@ export const StyleGrid = () => {
           return;
         }
 
-        console.log("Invoking match-style function");
-        const response = await supabase.functions.invoke('match-style', {
-          body: { 
-            userId: user.id,
-            minSimilarity: 0.5,
-            limit: 30
-          },
-          headers: {
-            Authorization: `Bearer ${sessionData.session.access_token}`,
-          },
-        });
-
-        if (response.error) {
-          console.error("Error from match-style function:", response.error);
-          throw response.error;
-        }
-        
-        console.log("Match-style response:", response.data);
-        
-        // Fetch matches after style matching
+        // Fetch matches
         await fetchMatches(sortBy);
 
       } catch (error) {
@@ -62,12 +43,7 @@ export const StyleGrid = () => {
     };
 
     loadMatches();
-  }, [user]);
-
-  const handleSort = (newSortBy: SortOption) => {
-    setSortBy(newSortBy);
-    fetchMatches(newSortBy);
-  };
+  }, [user, sortBy]);
 
   if (isLoading) {
     return <ProductGridSkeleton />;
@@ -91,7 +67,7 @@ export const StyleGrid = () => {
 
   return (
     <div className="space-y-6">
-      <ProductSort sortBy={sortBy} onSort={handleSort} />
+      <ProductSort sortBy={sortBy} onSort={setSortBy} />
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {items.map((item) => (
           <ProductCard 

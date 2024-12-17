@@ -29,14 +29,20 @@ export const useStyleMatches = () => {
       }
 
       // First get the user's latest style upload embedding
-      const { data: styleUploads } = await supabase
+      const { data: styleUploads, error: uploadsError } = await supabase
         .from('style_uploads')
         .select('embedding')
         .eq('user_id', session.session.user.id)
         .order('created_at', { ascending: false })
         .limit(1);
 
+      if (uploadsError) {
+        console.error('Error fetching style uploads:', uploadsError);
+        throw uploadsError;
+      }
+
       if (!styleUploads?.[0]?.embedding) {
+        console.log('No style uploads found');
         setItems([]);
         setIsLoading(false);
         return;
@@ -52,7 +58,7 @@ export const useStyleMatches = () => {
       const storeIds = (storePrefs || []).map(pref => pref.store_id);
 
       // Call the match_products function
-      const { data: matches, error } = await supabase
+      const { data: matches, error: matchError } = await supabase
         .rpc('match_products', {
           query_embedding: styleUploads[0].embedding,
           similarity_threshold: 0.5,
@@ -60,10 +66,22 @@ export const useStyleMatches = () => {
           store_filter: storeIds
         });
 
-      if (error) throw error;
+      if (matchError) {
+        console.error('Error matching products:', matchError);
+        throw matchError;
+      }
+
+      console.log('Matched products:', matches);
+
+      if (!matches || matches.length === 0) {
+        console.log('No matches found');
+        setItems([]);
+        setIsLoading(false);
+        return;
+      }
 
       // Transform matches into ProductMatch format
-      const productMatches: ProductMatch[] = (matches as MatchProductsResponse[]).map(match => ({
+      const productMatches: ProductMatch[] = matches.map(match => ({
         id: match.id,
         product_url: match.product_url,
         product_image: match.product_image,
@@ -82,7 +100,7 @@ export const useStyleMatches = () => {
       console.error('Error fetching matches:', error);
       toast({
         title: "Error",
-        description: "Failed to load style matches. Please try again.",
+        description: "Failed to load style matches. Please try uploading an image first.",
         variant: "destructive",
       });
     } finally {
