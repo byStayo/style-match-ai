@@ -1,4 +1,10 @@
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export type SortOption = "match" | "price" | "date";
 
@@ -9,15 +15,15 @@ interface ProductSortProps {
 
 export const ProductSort = ({ sortBy, onSort }: ProductSortProps) => {
   return (
-    <div className="flex items-center justify-end gap-2">
-      <span className="text-sm text-muted-foreground">Sort by:</span>
+    <div className="flex items-center justify-between">
+      <h2 className="text-lg font-semibold">Your Style Matches</h2>
       <Select value={sortBy} onValueChange={(value) => onSort(value as SortOption)}>
         <SelectTrigger className="w-[180px]">
-          <SelectValue />
+          <SelectValue placeholder="Sort by" />
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="match">Best Match</SelectItem>
-          <SelectItem value="price">Price</SelectItem>
+          <SelectItem value="price">Price: Low to High</SelectItem>
           <SelectItem value="date">Most Recent</SelectItem>
         </SelectContent>
       </Select>
