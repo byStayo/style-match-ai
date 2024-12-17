@@ -95,13 +95,17 @@ export const ImageUpload = () => {
 
   const analyzeStyle = async (imageUrl: string) => {
     try {
-      const response = await fetch('/api/analyze-style', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageUrl })
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) throw new Error('Authentication required');
+
+      const response = await supabase.functions.invoke('analyze-style', {
+        body: { imageUrl },
+        headers: {
+          Authorization: `Bearer ${sessionData.session.access_token}`,
+        },
       });
 
-      if (!response.ok) throw new Error('Style analysis failed');
+      if (response.error) throw new Error(response.error.message);
 
       toast({
         title: "Analysis complete",

@@ -14,7 +14,7 @@ export const StyleGrid = () => {
 
   useEffect(() => {
     fetchMatches();
-  }, []);
+  }, [sortBy]);
 
   const fetchMatches = async () => {
     try {
@@ -28,6 +28,7 @@ export const StyleGrid = () => {
       const { data, error } = await supabase
         .from('product_matches')
         .select('*')
+        .eq('user_id', session.session.user.id)
         .order(sortBy === 'match' ? 'match_score' : sortBy === 'price' ? 'product_price' : 'created_at', 
                { ascending: sortBy === 'price' });
 
@@ -78,7 +79,6 @@ export const StyleGrid = () => {
 
   const handleSort = (newSortBy: SortOption) => {
     setSortBy(newSortBy);
-    fetchMatches();
   };
 
   if (isLoading) {

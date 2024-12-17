@@ -14,39 +14,13 @@ serve(async (req) => {
 
   try {
     const { imageUrl } = await req.json();
+    console.log('Analyzing style for image:', imageUrl);
 
     // Initialize Supabase client
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
-
-    // Here we would normally:
-    // 1. Call OpenAI's CLIP API to get image embeddings
-    // 2. Compare embeddings with product database
-    // 3. Insert matches into product_matches table
-    
-    // For now, let's insert some sample matches
-    const sampleMatches = [
-      {
-        product_url: 'https://example.com/product1',
-        product_image: imageUrl, // Using the uploaded image as a placeholder
-        product_title: 'Sample Product 1',
-        product_price: 99.99,
-        store_name: 'Sample Store',
-        match_score: 0.95,
-        match_explanation: 'Similar style and color pattern',
-      },
-      {
-        product_url: 'https://example.com/product2',
-        product_image: imageUrl,
-        product_title: 'Sample Product 2',
-        product_price: 79.99,
-        store_name: 'Sample Store',
-        match_score: 0.85,
-        match_explanation: 'Matching color scheme',
-      },
-    ];
 
     // Get user ID from the auth token
     const authHeader = req.headers.get('Authorization')?.split('Bearer ')[1];
@@ -56,23 +30,47 @@ serve(async (req) => {
       throw new Error('Unauthorized');
     }
 
+    // For now, generate sample matches
+    const sampleMatches = [
+      {
+        user_id: user.id,
+        product_url: 'https://example.com/product1',
+        product_image: imageUrl,
+        product_title: 'Matching Style Item 1',
+        product_price: 99.99,
+        store_name: 'Fashion Store',
+        match_score: 0.95,
+        match_explanation: 'Similar color palette and style elements',
+      },
+      {
+        user_id: user.id,
+        product_url: 'https://example.com/product2',
+        product_image: imageUrl,
+        product_title: 'Matching Style Item 2',
+        product_price: 79.99,
+        store_name: 'Style Boutique',
+        match_score: 0.85,
+        match_explanation: 'Complementary style elements',
+      },
+    ];
+
     // Insert sample matches
     const { error: insertError } = await supabaseClient
       .from('product_matches')
-      .insert(sampleMatches.map(match => ({
-        ...match,
-        user_id: user.id,
-      })));
+      .insert(sampleMatches);
 
-    if (insertError) throw insertError;
+    if (insertError) {
+      console.error('Error inserting matches:', insertError);
+      throw insertError;
+    }
 
     return new Response(
-      JSON.stringify({ success: true }),
+      JSON.stringify({ success: true, matchCount: sampleMatches.length }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error in analyze-style function:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { 
