@@ -1,18 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { ProductMatch } from "@/types/product";
 import { SortOption } from "@/components/product/ProductSort";
-
-interface MatchProductsResponse {
-  id: string;
-  product_url: string;
-  product_image: string;
-  product_title: string;
-  product_price: number;
-  store_name: string;
-  similarity: number;
-}
 
 export const useStyleMatches = () => {
   const [items, setItems] = useState<ProductMatch[]>([]);
@@ -28,7 +18,7 @@ export const useStyleMatches = () => {
         return;
       }
 
-      // First get the user's latest style upload embedding
+      // Get the user's latest style upload embedding
       const { data: styleUploads, error: uploadsError } = await supabase
         .from('style_uploads')
         .select('embedding')

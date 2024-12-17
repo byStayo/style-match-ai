@@ -6,7 +6,6 @@ import { EmptyProductGrid } from "./product/EmptyProductGrid";
 import { useStyleMatches } from "@/hooks/useStyleMatches";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
 
 export const StyleGrid = () => {
   const [sortBy, setSortBy] = useState<SortOption>("match");
@@ -23,15 +22,7 @@ export const StyleGrid = () => {
 
       try {
         console.log("Loading matches for user:", user.id);
-        const { data: sessionData } = await supabase.auth.getSession();
-        if (!sessionData.session) {
-          console.log("No active session found");
-          return;
-        }
-
-        // Fetch matches
         await fetchMatches(sortBy);
-
       } catch (error) {
         console.error('Error loading style matches:', error);
         toast({
