@@ -9,6 +9,7 @@ import { AnalysisProviderSelect } from "./upload/AnalysisProviderSelect";
 import { GuestAuthPrompt } from "./upload/GuestAuthPrompt";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
+import { useNavigate } from "react-router-dom";
 
 export const ImageUpload = () => {
   const [preview, setPreview] = useState<string | null>(null);
@@ -19,6 +20,7 @@ export const ImageUpload = () => {
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const [uploadCount, setUploadCount] = useState(0);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -74,21 +76,22 @@ export const ImageUpload = () => {
       setUploadCount(prev => prev + 1);
       
       // Check if user has reached the trial limit
-      if (uploadCount >= 2) {
-        const { data: sessionData } = await supabase.auth.getSession();
-        if (!sessionData.session?.user) {
-          setShowAuthPrompt(true);
-          toast({
-            title: "Trial Limit Reached",
-            description: "Create an account to continue using StyleMatch AI and save your preferences!",
-          });
-        }
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session?.user && uploadCount >= 2) {
+        setShowAuthPrompt(true);
+        toast({
+          title: "Trial Limit Reached",
+          description: "Create an account to continue using StyleMatch AI and save your preferences!",
+        });
       } else {
         toast({
           title: "Upload successful!",
-          description: "Your image has been analyzed and we'll show you matching items.",
+          description: "Your image has been analyzed. We'll show you matching items.",
         });
+        // Navigate to show matches
+        navigate("/matches");
       }
+
     } catch (err) {
       console.error("Upload error:", err);
       setError(err instanceof Error ? err.message : "Failed to upload image");

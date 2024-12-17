@@ -3,8 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { DashboardTabs } from "@/components/dashboard/DashboardTabs";
 import { ImageUpload } from "@/components/ImageUpload";
+import { StyleGrid } from "@/components/StyleGrid";
 
 const Index = () => {
   const { user, loading } = useAuth();
@@ -40,7 +40,7 @@ const Index = () => {
       </header>
       
       <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-        <div className="space-y-8">
+        <div className="space-y-12">
           <section className="text-center">
             <h2 className="text-4xl font-bold tracking-tight text-foreground sm:text-6xl">
               Find Your Perfect Style Match
@@ -54,6 +54,11 @@ const Index = () => {
             <div className="max-w-2xl mx-auto text-center">
               <ImageUpload />
             </div>
+          </section>
+
+          <section className="space-y-6">
+            <h3 className="text-2xl font-semibold text-center">Your Style Matches</h3>
+            <StyleGrid />
           </section>
         </div>
       </main>

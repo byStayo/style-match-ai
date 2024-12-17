@@ -23,22 +23,22 @@ export const GuestAuthPrompt = ({ open, onOpenChange }: GuestAuthPromptProps) =>
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        }
+          emailRedirectTo: window.location.origin,
+        },
       });
 
       if (error) throw error;
 
       toast({
         title: "Check your email",
-        description: "We've sent you a magic link to sign in and save your preferences!",
+        description: "We've sent you a magic link to sign in and save your preferences.",
       });
       onOpenChange(false);
     } catch (error) {
       console.error("Auth error:", error);
       toast({
         title: "Error",
-        description: "Failed to send magic link. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to send magic link",
         variant: "destructive",
       });
     } finally {
@@ -48,11 +48,11 @@ export const GuestAuthPrompt = ({ open, onOpenChange }: GuestAuthPromptProps) =>
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Save Your Style Preferences</DialogTitle>
+          <DialogTitle>Continue with StyleMatch AI</DialogTitle>
           <DialogDescription>
-            Enter your email to create an account and save your style preferences. You'll get unlimited matches and personalized recommendations!
+            Create an account to save your preferences and continue discovering your perfect style matches.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSignUp} className="space-y-4">
@@ -63,20 +63,16 @@ export const GuestAuthPrompt = ({ open, onOpenChange }: GuestAuthPromptProps) =>
             onChange={(e) => setEmail(e.target.value)}
             required
           />
-          <div className="flex justify-end space-x-4">
+          <div className="flex justify-end gap-4">
             <Button
               type="button"
-              variant="ghost"
+              variant="outline"
               onClick={() => onOpenChange(false)}
-              disabled={isLoading}
             >
               Try More Later
             </Button>
-            <Button
-              type="submit"
-              disabled={isLoading}
-            >
-              Create Account
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? "Sending..." : "Continue"}
             </Button>
           </div>
         </form>
