@@ -3,6 +3,7 @@ import { StyleGrid } from "@/components/StyleGrid";
 import { AuthButtons } from "@/components/AuthButtons";
 import { SocialMediaConnect } from "@/components/SocialMediaConnect";
 import { StoreSelector } from "@/components/StoreSelector";
+import { ProfileSection } from "@/components/ProfileSection";
 import { useAuth } from "@/hooks/useAuth";
 
 const Index = () => {
@@ -35,19 +36,7 @@ const Index = () => {
             </section>
           )}
 
-          {user && (
-            <section>
-              <div className="max-w-2xl mx-auto text-center">
-                <h2 className="text-2xl font-semibold text-foreground mb-4">
-                  Connect Your Social Media
-                </h2>
-                <p className="text-muted-foreground mb-8">
-                  Connect your accounts or analyze public profiles to get personalized style recommendations.
-                </p>
-                <SocialMediaConnect />
-              </div>
-            </section>
-          )}
+          {user && <ProfileSection />}
 
           <section>
             <div className="max-w-2xl mx-auto text-center">
