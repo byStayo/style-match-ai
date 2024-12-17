@@ -36,6 +36,9 @@ export const useStyleMatches = () => {
         return;
       }
 
+      // Get previous matches to detect new ones
+      const previousMatches = new Set(items.map(item => item.id));
+
       // Get matches using the edge function
       const { data: matchesData, error: matchError } = await supabase.functions
         .invoke('match-products', {
@@ -51,6 +54,36 @@ export const useStyleMatches = () => {
       // Sort matches based on user preference
       const sortedMatches = sortMatches(matchesData.matches, sortBy);
       setItems(sortedMatches);
+
+      // Find new matches
+      const newMatches = sortedMatches.filter(match => !previousMatches.has(match.id));
+
+      // Send email notification if there are new matches
+      if (newMatches.length > 0) {
+        console.log('New matches found:', newMatches.length);
+        
+        const { error: notificationError } = await supabase.functions
+          .invoke('send-match-notification', {
+            body: {
+              userId: session.session.user.id,
+              matches: newMatches.map(match => ({
+                productTitle: match.product_title,
+                storeName: match.store_name,
+                matchScore: match.match_score,
+                productUrl: match.product_url,
+              }))
+            }
+          });
+
+        if (notificationError) {
+          console.error('Error sending notification:', notificationError);
+          toast({
+            title: "Notification Error",
+            description: "Failed to send email notification for new matches.",
+            variant: "destructive",
+          });
+        }
+      }
 
     } catch (error) {
       console.error('Error fetching matches:', error);
