@@ -13,67 +13,42 @@ export const useStyleMatches = () => {
   const fetchMatches = async (sortBy: SortOption = 'match') => {
     try {
       setError(null);
+      setIsLoading(true);
+
       const { data: session } = await supabase.auth.getSession();
       if (!session?.session?.user) {
         setItems([]);
-        setIsLoading(false);
         return;
       }
 
-      // Get the user's latest style upload embedding
-      const { data: styleUploads, error: uploadsError } = await supabase
+      // Get the user's latest style upload
+      const { data: uploads, error: uploadsError } = await supabase
         .from('style_uploads')
-        .select('embedding')
+        .select('id')
         .eq('user_id', session.session.user.id)
         .order('created_at', { ascending: false })
         .limit(1);
 
-      if (uploadsError) {
-        console.error('Error fetching style uploads:', uploadsError);
-        throw uploadsError;
-      }
-
-      if (!styleUploads?.[0]?.embedding) {
+      if (uploadsError) throw uploadsError;
+      if (!uploads?.length) {
         console.log('No style uploads found');
         setItems([]);
-        setIsLoading(false);
         return;
       }
 
-      // Get user's store preferences
-      const { data: storePrefs } = await supabase
-        .from('user_store_preferences')
-        .select('store_id')
-        .eq('user_id', session.session.user.id)
-        .eq('is_favorite', true);
-
-      const storeIds = (storePrefs || []).map(pref => pref.store_id);
-
-      // Call the match_products function
-      const { data: matches, error: matchError } = await supabase
-        .rpc('match_products', {
-          query_embedding: styleUploads[0].embedding,
-          similarity_threshold: 0.5,
-          match_count: 30,
-          store_filter: storeIds
+      // Get matches using the edge function
+      const { data: matchesData, error: matchError } = await supabase.functions
+        .invoke('match-products', {
+          body: { 
+            styleUploadId: uploads[0].id,
+            minSimilarity: 0.7,
+            limit: 20
+          }
         });
 
-      if (matchError) {
-        console.error('Error matching products:', matchError);
-        throw matchError;
-      }
+      if (matchError) throw matchError;
 
-      console.log('Matched products:', matches);
-
-      if (!matches || matches.length === 0) {
-        console.log('No matches found');
-        setItems([]);
-        setIsLoading(false);
-        return;
-      }
-
-      // Transform matches into ProductMatch format
-      const productMatches: ProductMatch[] = matches.map(match => ({
+      const matches = matchesData.matches.map((match: any) => ({
         id: match.id,
         product_url: match.product_url,
         product_image: match.product_image,
@@ -81,13 +56,14 @@ export const useStyleMatches = () => {
         product_price: match.product_price,
         store_name: match.store_name,
         match_score: match.similarity,
-        match_explanation: `This item matches your style with ${Math.round(match.similarity * 100)}% confidence`,
+        match_explanation: match.match_explanation,
         is_favorite: false
       }));
 
       // Sort matches based on user preference
-      const sortedMatches = sortMatches(productMatches, sortBy);
+      const sortedMatches = sortMatches(matches, sortBy);
       setItems(sortedMatches);
+
     } catch (error) {
       console.error('Error fetching matches:', error);
       setError(error instanceof Error ? error : new Error('Failed to load matches'));

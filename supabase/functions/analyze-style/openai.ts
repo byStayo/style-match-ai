@@ -6,7 +6,7 @@ export async function analyzeWithOpenAI(imageUrl: string): Promise<StyleAnalysis
     throw new Error('OpenAI API key not configured');
   }
 
-  console.log('Using OpenAI for analysis');
+  console.log('Using OpenAI Vision for analysis');
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -15,18 +15,23 @@ export async function analyzeWithOpenAI(imageUrl: string): Promise<StyleAnalysis
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'gpt-4o-mini',
+      model: 'gpt-4o',
       messages: [
         {
           role: 'system',
-          content: `You are a fashion style analyzer. Analyze the image and provide style tags from this list: ${STYLE_CATEGORIES.join(', ')}. Return ONLY a JSON object with two fields: "tags" (array of strings) and "description" (string).`
+          content: `You are a fashion style analyzer. Analyze the image and provide:
+            1. Style categories (e.g., casual, formal, streetwear)
+            2. Key features (e.g., patterns, materials, fit)
+            3. Color palette
+            4. Occasion suitability
+            Return as a JSON object with these fields.`
         },
         {
           role: 'user',
           content: [
             {
               type: 'text',
-              text: 'Analyze this fashion image and provide style tags.',
+              text: 'Analyze this fashion image in detail.',
             },
             {
               type: 'image_url',
@@ -35,7 +40,7 @@ export async function analyzeWithOpenAI(imageUrl: string): Promise<StyleAnalysis
           ],
         },
       ],
-      max_tokens: 500,
+      max_tokens: 1000,
     }),
   });
 
@@ -52,33 +57,39 @@ export async function analyzeWithOpenAI(imageUrl: string): Promise<StyleAnalysis
 
   let parsedAnalysis;
   try {
-    // Try to parse the content directly
     const content = data.choices[0].message.content.trim();
     parsedAnalysis = JSON.parse(content);
   } catch (parseError) {
     console.error('Failed to parse OpenAI response:', parseError);
-    // Fallback: Try to extract JSON from markdown if present
-    const content = data.choices[0].message.content;
-    const jsonMatch = content.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
-    if (jsonMatch) {
-      parsedAnalysis = JSON.parse(jsonMatch[1]);
-    } else {
-      throw new Error('Failed to parse OpenAI response as JSON');
-    }
+    throw new Error('Failed to parse OpenAI response as JSON');
   }
 
-  if (!parsedAnalysis || !Array.isArray(parsedAnalysis.tags)) {
-    throw new Error('Invalid analysis format from OpenAI');
-  }
+  // Generate embeddings for the style description
+  const embeddingResponse = await fetch('https://api.openai.com/v1/embeddings', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${openAIApiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'text-embedding-3-small',
+      input: JSON.stringify(parsedAnalysis),
+    }),
+  });
+
+  const embeddingData = await embeddingResponse.json();
+  const embedding = embeddingData.data[0].embedding;
 
   return {
-    style_tags: parsedAnalysis.tags,
-    embedding: null,
+    style_tags: parsedAnalysis.style_categories,
+    embedding,
     confidence_scores: null,
     metadata: {
       provider: 'openai',
-      model: 'gpt-4o-mini',
-      description: parsedAnalysis.description
+      model: 'gpt-4o',
+      features: parsedAnalysis.key_features,
+      colors: parsedAnalysis.color_palette,
+      occasions: parsedAnalysis.occasion_suitability
     }
   };
 }
