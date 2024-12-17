@@ -13,78 +13,108 @@ serve(async (req) => {
   }
 
   try {
-    const { imageUrl, analysisProvider = 'huggingface' } = await req.json()
+    const { imageUrl, analysisProvider } = await req.json()
     
     if (!imageUrl) {
       throw new Error('No image URL provided')
     }
 
-    const supabaseAdmin = createClient(
+    let styleAnalysis;
+    
+    if (analysisProvider === 'huggingface') {
+      const hf = new HfInference(Deno.env.get('HUGGING_FACE_ACCESS_TOKEN'))
+      
+      // Use image classification to get style tags
+      const classification = await hf.imageClassification({
+        model: "apple/mobilevitv2-1.0-imagenet1k-256",
+        data: imageUrl,
+        candidate_labels: [
+          "casual wear", "formal wear", "streetwear", "bohemian", 
+          "minimalist", "vintage", "athletic wear", "business casual",
+          "evening wear", "summer style", "winter fashion"
+        ]
+      })
+
+      // Get image embeddings for similarity search
+      const embedding = await hf.featureExtraction({
+        model: "openai/clip-vit-base-patch32",
+        data: imageUrl,
+      })
+
+      styleAnalysis = {
+        style_tags: classification.map(c => c.label),
+        embedding: embedding,
+        confidence_scores: classification.map(c => c.score)
+      }
+    } else if (analysisProvider === 'openai') {
+      // Call OpenAI Vision API for analysis
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'user',
+              content: [
+                {
+                  type: 'text',
+                  text: 'Analyze this fashion image and provide style tags. Format as JSON with "tags" array.',
+                },
+                {
+                  type: 'image_url',
+                  image_url: { url: imageUrl },
+                },
+              ],
+            },
+          ],
+          max_tokens: 500,
+        }),
+      })
+
+      const data = await response.json()
+      const analysis = JSON.parse(data.choices[0].message.content)
+      
+      styleAnalysis = {
+        style_tags: analysis.tags,
+        embedding: null, // OpenAI doesn't provide embeddings directly
+        confidence_scores: null
+      }
+    } else {
+      throw new Error('Invalid analysis provider')
+    }
+
+    // Store the analysis results
+    const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Get user from auth header if available
-    const authHeader = req.headers.get('Authorization')?.split('Bearer ')[1]
-    let userId = null;
-
-    if (authHeader) {
-      const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(authHeader)
-      if (!userError && user) {
-        userId = user.id;
-
-        // Check user's subscription status and upload count for authenticated users
-        const { data: profile } = await supabaseAdmin
-          .from('profiles')
-          .select('subscription_tier, upload_count')
-          .eq('id', user.id)
-          .single()
-
-        if (profile) {
-          const uploadLimit = profile.subscription_tier === 'premium' ? 1000 : 5
-          if (profile.upload_count >= uploadLimit) {
-            throw new Error(`Upload limit reached. Please upgrade to premium for more uploads.`)
-          }
-
-          // Increment upload count for authenticated users
-          await supabaseAdmin
-            .from('profiles')
-            .update({ upload_count: (profile.upload_count || 0) + 1 })
-            .eq('id', user.id)
-        }
-      }
-    }
-
-    // Analyze image based on provider
-    const analysis = analysisProvider === 'openai' 
-      ? await analyzeWithOpenAI(imageUrl)
-      : await analyzeWithHuggingFace(imageUrl)
-
-    // Store analysis results
-    if (userId) {
-      const { error: updateError } = await supabaseAdmin
+    const { data: { user } } = await supabase.auth.getUser(req.headers.get('Authorization')?.split('Bearer ')[1] ?? '')
+    
+    if (user) {
+      const { error: uploadError } = await supabase
         .from('style_uploads')
         .insert({
-          user_id: userId,
+          user_id: user.id,
           image_url: imageUrl,
           upload_type: 'clothing',
-          embedding: analysis.embedding,
+          embedding: styleAnalysis.embedding,
           metadata: {
-            style_tags: analysis.styleTags,
-            analysis_completed: true,
-            analyzed_at: new Date().toISOString(),
+            style_tags: styleAnalysis.style_tags,
+            confidence_scores: styleAnalysis.confidence_scores,
             analysis_provider: analysisProvider,
           }
         })
 
-      if (updateError) throw updateError
+      if (uploadError) throw uploadError
     }
 
     return new Response(
-      JSON.stringify({
-        success: true,
-        style_tags: analysis.styleTags,
-      }),
+      JSON.stringify({ success: true, analysis: styleAnalysis }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 
@@ -99,67 +129,3 @@ serve(async (req) => {
     )
   }
 })
-
-async function analyzeWithHuggingFace(imageUrl: string) {
-  const hf = new HfInference(Deno.env.get('HUGGING_FACE_ACCESS_TOKEN'))
-  
-  const embedding = await hf.featureExtraction({
-    model: 'openai/clip-vit-base-patch32',
-    data: imageUrl,
-  })
-
-  const classification = await hf.imageClassification({
-    model: 'apple/mobilevitv2-1.0-imagenet1k-256',
-    data: imageUrl,
-  })
-
-  return {
-    embedding,
-    styleTags: classification
-      .filter(c => c.score > 0.1)
-      .map(c => c.label),
-  }
-}
-
-async function analyzeWithOpenAI(imageUrl: string) {
-  const openaiKey = Deno.env.get('OPENAI_API_KEY')
-  if (!openaiKey) throw new Error('OpenAI API key not configured')
-
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${openaiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'gpt-4o-mini',
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: 'Analyze this product image and provide style tags. Format as JSON with "tags" array.',
-            },
-            {
-              type: 'image_url',
-              image_url: { url: imageUrl },
-            },
-          ],
-        },
-      ],
-      max_tokens: 500,
-    }),
-  })
-
-  const data = await response.json()
-  const analysis = JSON.parse(data.choices[0].message.content)
-  
-  // Generate a simple embedding (in production, use a proper embedding model)
-  const embedding = new Array(512).fill(0)
-  
-  return {
-    embedding,
-    styleTags: analysis.tags,
-  }
-}
