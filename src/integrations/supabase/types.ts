@@ -59,6 +59,45 @@ export type Database = {
           },
         ]
       }
+      products: {
+        Row: {
+          created_at: string | null
+          id: string
+          product_description: string | null
+          product_image: string
+          product_price: number
+          product_title: string
+          product_url: string
+          store_name: string
+          style_embedding: string | null
+          style_tags: string[] | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          product_description?: string | null
+          product_image: string
+          product_price: number
+          product_title: string
+          product_url: string
+          store_name: string
+          style_embedding?: string | null
+          style_tags?: string[] | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          product_description?: string | null
+          product_image?: string
+          product_price?: number
+          product_title?: string
+          product_url?: string
+          store_name?: string
+          style_embedding?: string | null
+          style_tags?: string[] | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -91,6 +130,92 @@ export type Database = {
           username?: string | null
         }
         Relationships: []
+      }
+      social_connections: {
+        Row: {
+          access_token: string | null
+          connected_at: string | null
+          id: string
+          last_sync: string | null
+          platform: Database["public"]["Enums"]["social_platform"]
+          platform_user_id: string
+          refresh_token: string | null
+          user_id: string | null
+        }
+        Insert: {
+          access_token?: string | null
+          connected_at?: string | null
+          id?: string
+          last_sync?: string | null
+          platform: Database["public"]["Enums"]["social_platform"]
+          platform_user_id: string
+          refresh_token?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          access_token?: string | null
+          connected_at?: string | null
+          id?: string
+          last_sync?: string | null
+          platform?: Database["public"]["Enums"]["social_platform"]
+          platform_user_id?: string
+          refresh_token?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_connections_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      style_matches: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_favorite: boolean | null
+          match_explanation: string | null
+          match_score: number
+          product_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_favorite?: boolean | null
+          match_explanation?: string | null
+          match_score: number
+          product_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_favorite?: boolean | null
+          match_explanation?: string | null
+          match_score?: number
+          product_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "style_matches_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "style_matches_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       style_uploads: {
         Row: {
@@ -309,7 +434,9 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      social_platform: "instagram" | "facebook" | "tiktok"
+      subscription_tier: "free" | "premium"
+      upload_type: "clothing" | "selfie" | "inspiration" | "social"
     }
     CompositeTypes: {
       [_ in never]: never
