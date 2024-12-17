@@ -1,5 +1,5 @@
 import { startVitest } from 'vitest/node';
-import type { Vitest, TestSpecification } from 'vitest';
+import type { Vitest, File } from 'vitest';
 
 async function runTests() {
   try {
@@ -17,12 +17,11 @@ async function runTests() {
 
     // Get test results
     const testPaths = await vitest.getTestFilepaths();
-    const testSpecs: TestSpecification[] = testPaths.map(path => ({ path }));
-    await Promise.all(testSpecs.map(spec => vitest.runFiles([spec])));
+    await Promise.all(testPaths.map(path => vitest.runFiles([{ path }], 'test')));
     
     // Check for failures
     const state = vitest.state;
-    const failedTestFiles = state.getFiles().filter(file => 
+    const failedTestFiles = state.getFiles().filter((file: File) => 
       file.tasks.some(task => task.result?.state === 'fail')
     );
     
@@ -32,9 +31,9 @@ async function runTests() {
     }
 
     console.log('All tests passed!');
-    const coverageData = state.getCoverageData();
-    if (coverageData) {
-      console.log('Coverage:', coverageData);
+    const coverage = state.getCoverage();
+    if (coverage) {
+      console.log('Coverage:', coverage);
     }
     
     await vitest.close();
