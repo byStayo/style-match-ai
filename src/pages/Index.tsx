@@ -43,14 +43,26 @@ const Index = () => {
       
       <main className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
         <div className="space-y-12">
+          <section className="bg-background rounded-lg p-8 border">
+            <div className="max-w-2xl mx-auto text-center">
+              <h2 className="text-2xl font-semibold text-foreground mb-4">
+                Upload Your Style
+              </h2>
+              <p className="text-muted-foreground mb-8">
+                Upload a photo of your style inspiration, and we'll find matching items for you.
+              </p>
+              <ImageUpload />
+            </div>
+          </section>
+
           {!user && !loading && (
             <section className="bg-muted/50 rounded-lg p-8">
               <div className="max-w-2xl mx-auto text-center">
                 <h2 className="text-2xl font-semibold text-foreground mb-4">
-                  Get Started with StyleMatch AI
+                  Want to Save Your Style Matches?
                 </h2>
                 <p className="text-muted-foreground mb-8">
-                  Sign in to unlock personalized style recommendations and more.
+                  Sign in to save your preferences and get personalized recommendations.
                 </p>
                 <AuthButtons />
               </div>
@@ -59,18 +71,6 @@ const Index = () => {
 
           {user && (
             <>
-              <section className="bg-background rounded-lg p-8 border">
-                <div className="max-w-2xl mx-auto text-center">
-                  <h2 className="text-2xl font-semibold text-foreground mb-4">
-                    Upload Your Style
-                  </h2>
-                  <p className="text-muted-foreground mb-8">
-                    Upload a photo of your style inspiration, and we'll find matching items for you.
-                  </p>
-                  <ImageUpload />
-                </div>
-              </section>
-
               <section className="bg-background rounded-lg p-8 border">
                 <div className="max-w-2xl mx-auto text-center">
                   <h2 className="text-2xl font-semibold text-foreground mb-4">
