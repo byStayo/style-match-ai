@@ -5,6 +5,7 @@ import { StyleGrid } from "@/components/StyleGrid";
 import { AuthButtons } from "@/components/AuthButtons";
 import { ProfileSection } from "@/components/ProfileSection";
 import { StoreSelector } from "@/components/StoreSelector";
+import { SocialMediaConnect } from "@/components/SocialMediaConnect";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 
@@ -67,6 +68,18 @@ const Index = () => {
                     Upload a photo of your style inspiration, and we'll find matching items for you.
                   </p>
                   <ImageUpload />
+                </div>
+              </section>
+
+              <section className="bg-background rounded-lg p-8 border">
+                <div className="max-w-2xl mx-auto text-center">
+                  <h2 className="text-2xl font-semibold text-foreground mb-4">
+                    Connect Your Social Media
+                  </h2>
+                  <p className="text-muted-foreground mb-8">
+                    Connect your social accounts or analyze public profiles to get personalized recommendations.
+                  </p>
+                  <SocialMediaConnect />
                 </div>
               </section>
 
