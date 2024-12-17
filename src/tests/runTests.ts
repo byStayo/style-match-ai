@@ -4,20 +4,26 @@ async function runTests() {
   try {
     const vitest = await startVitest('test', [], {
       include: ['src/**/*.test.ts'],
-      coverage: true,
+      coverage: {
+        provider: 'v8',
+        enabled: true,
+        reporter: ['text', 'json', 'html'],
+      },
       threads: true
     });
 
-    const results = await vitest.run();
+    // Use the correct API to run tests
+    const result = await vitest.start();
 
-    if (results.errors.length > 0) {
-      console.error('Test failures:', results.errors);
+    if (result.state.getCountOfFailedTests() > 0) {
+      console.error('Test failures:', result.state.getTestResults());
       process.exit(1);
     }
 
     console.log('All tests passed!');
-    if (results.coverage) {
-      console.log('Coverage:', results.coverage.summary);
+    const coverage = result.state.getCoverage();
+    if (coverage) {
+      console.log('Coverage:', coverage);
     }
     
     await vitest.close();
