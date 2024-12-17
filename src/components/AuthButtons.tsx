@@ -14,7 +14,11 @@ export const AuthButtons = () => {
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`
+          redirectTo: `${window.location.origin}/auth/callback`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          }
         }
       });
 
@@ -39,7 +43,7 @@ export const AuthButtons = () => {
   const handleGuestAccess = async () => {
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { data: { session }, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/auth/callback`
