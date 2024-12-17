@@ -1,22 +1,21 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Filter } from "lucide-react";
 import {
   Sheet,
   SheetContent,
-  SheetDescription,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import { Slider } from "@/components/ui/slider";
+import { Badge } from "@/components/ui/badge";
+import { SlidersHorizontal, X } from "lucide-react";
 
 export interface FilterOptions {
-  minPrice?: number;
-  maxPrice?: number;
   stores: string[];
   styleCategories: string[];
+  minPrice?: number;
+  maxPrice?: number;
 }
 
 interface ProductFiltersProps {
@@ -30,97 +29,138 @@ export const ProductFilters = ({
   availableStores,
   availableCategories,
 }: ProductFiltersProps) => {
-  const [filters, setFilters] = useState<FilterOptions>({
-    stores: [],
-    styleCategories: [],
-  });
+  const [isOpen, setIsOpen] = useState(false);
+  const [selectedStores, setSelectedStores] = useState<string[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000]);
 
-  const handleFilterChange = (newFilters: Partial<FilterOptions>) => {
-    const updatedFilters = { ...filters, ...newFilters };
-    setFilters(updatedFilters);
-    onFilterChange(updatedFilters);
+  const handleStoreToggle = (store: string) => {
+    const newStores = selectedStores.includes(store)
+      ? selectedStores.filter((s) => s !== store)
+      : [...selectedStores, store];
+    setSelectedStores(newStores);
+    updateFilters(newStores, selectedCategories, priceRange);
   };
 
+  const handleCategoryToggle = (category: string) => {
+    const newCategories = selectedCategories.includes(category)
+      ? selectedCategories.filter((c) => c !== category)
+      : [...selectedCategories, category];
+    setSelectedCategories(newCategories);
+    updateFilters(selectedStores, newCategories, priceRange);
+  };
+
+  const handlePriceChange = (value: number[]) => {
+    const range: [number, number] = [value[0], value[1]];
+    setPriceRange(range);
+    updateFilters(selectedStores, selectedCategories, range);
+  };
+
+  const updateFilters = (
+    stores: string[],
+    categories: string[],
+    [min, max]: [number, number]
+  ) => {
+    onFilterChange({
+      stores,
+      styleCategories: categories,
+      minPrice: min,
+      maxPrice: max,
+    });
+  };
+
+  const clearFilters = () => {
+    setSelectedStores([]);
+    setSelectedCategories([]);
+    setPriceRange([0, 1000]);
+    onFilterChange({
+      stores: [],
+      styleCategories: [],
+    });
+  };
+
+  const activeFilterCount =
+    selectedStores.length + selectedCategories.length + (priceRange[0] > 0 || priceRange[1] < 1000 ? 1 : 0);
+
   return (
-    <Sheet>
+    <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <SheetTrigger asChild>
         <Button variant="outline" size="sm" className="gap-2">
-          <Filter className="h-4 w-4" />
+          <SlidersHorizontal className="h-4 w-4" />
           Filters
+          {activeFilterCount > 0 && (
+            <Badge variant="secondary" className="ml-1">
+              {activeFilterCount}
+            </Badge>
+          )}
         </Button>
       </SheetTrigger>
-      <SheetContent>
+      <SheetContent className="w-[300px] sm:w-[400px]">
         <SheetHeader>
-          <SheetTitle>Filter Matches</SheetTitle>
-          <SheetDescription>
-            Customize your style matches by applying filters
-          </SheetDescription>
+          <div className="flex items-center justify-between">
+            <SheetTitle>Filters</SheetTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearFilters}
+              className="text-muted-foreground"
+            >
+              Clear all
+            </Button>
+          </div>
         </SheetHeader>
 
         <div className="mt-6 space-y-6">
           <div className="space-y-4">
-            <Label>Price Range</Label>
-            <div className="flex items-center gap-2">
-              <Input
-                type="number"
-                placeholder="Min"
-                className="w-24"
-                onChange={(e) =>
-                  handleFilterChange({ minPrice: Number(e.target.value) || undefined })
-                }
-              />
-              <span>to</span>
-              <Input
-                type="number"
-                placeholder="Max"
-                className="w-24"
-                onChange={(e) =>
-                  handleFilterChange({ maxPrice: Number(e.target.value) || undefined })
-                }
-              />
+            <h3 className="text-sm font-medium">Price Range</h3>
+            <Slider
+              min={0}
+              max={1000}
+              step={10}
+              value={[priceRange[0], priceRange[1]]}
+              onValueChange={handlePriceChange}
+              className="w-full"
+            />
+            <div className="flex items-center justify-between text-sm text-muted-foreground">
+              <span>${priceRange[0]}</span>
+              <span>${priceRange[1]}</span>
             </div>
           </div>
 
           <div className="space-y-4">
-            <Label>Stores</Label>
+            <h3 className="text-sm font-medium">Stores</h3>
             <div className="flex flex-wrap gap-2">
               {availableStores.map((store) => (
-                <Button
+                <Badge
                   key={store}
-                  variant={filters.stores.includes(store) ? "default" : "outline"}
-                  size="sm"
-                  onClick={() =>
-                    handleFilterChange({
-                      stores: filters.stores.includes(store)
-                        ? filters.stores.filter((s) => s !== store)
-                        : [...filters.stores, store],
-                    })
-                  }
+                  variant={selectedStores.includes(store) ? "default" : "outline"}
+                  className="cursor-pointer"
+                  onClick={() => handleStoreToggle(store)}
                 >
                   {store}
-                </Button>
+                  {selectedStores.includes(store) && (
+                    <X className="ml-1 h-3 w-3" />
+                  )}
+                </Badge>
               ))}
             </div>
           </div>
 
           <div className="space-y-4">
-            <Label>Style Categories</Label>
+            <h3 className="text-sm font-medium">Style Categories</h3>
             <div className="flex flex-wrap gap-2">
               {availableCategories.map((category) => (
-                <Button
+                <Badge
                   key={category}
-                  variant={filters.styleCategories.includes(category) ? "default" : "outline"}
-                  size="sm"
-                  onClick={() =>
-                    handleFilterChange({
-                      styleCategories: filters.styleCategories.includes(category)
-                        ? filters.styleCategories.filter((c) => c !== category)
-                        : [...filters.styleCategories, category],
-                    })
-                  }
+                  variant={selectedCategories.includes(category) ? "default" : "outline"}
+                  className="cursor-pointer"
+                  onClick={() => handleCategoryToggle(category)}
                 >
                   {category}
-                </Button>
+                  {selectedCategories.includes(category) && (
+                    <X className="ml-1 h-3 w-3" />
+                  )}
+                </Badge>
               ))}
             </div>
           </div>
