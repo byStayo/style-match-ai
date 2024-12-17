@@ -84,6 +84,20 @@ const Index = () => {
               </section>
 
               <section className="bg-background rounded-lg p-8 border">
+                <div className="max-w-2xl mx-auto">
+                  <div className="text-center mb-8">
+                    <h2 className="text-2xl font-semibold text-foreground mb-4">
+                      Fetch Store Products
+                    </h2>
+                    <p className="text-muted-foreground">
+                      Update product catalogs from your selected stores.
+                    </p>
+                  </div>
+                  <StoreProductFetcher />
+                </div>
+              </section>
+
+              <section className="bg-background rounded-lg p-8 border">
                 <div className="max-w-2xl mx-auto text-center">
                   <h2 className="text-2xl font-semibold text-foreground mb-4">
                     Connect Your Social Media
