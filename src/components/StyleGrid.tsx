@@ -5,6 +5,7 @@ import { ProductGridSkeleton } from "./product/ProductGridSkeleton";
 import { EmptyProductGrid } from "./product/EmptyProductGrid";
 import { ProductGrid } from "./product/ProductGrid";
 import { ProductPagination } from "./product/ProductPagination";
+import { MatchAnalytics } from "./product/MatchAnalytics";
 import { useStyleMatches } from "@/hooks/useStyleMatches";
 import { useProductFilters } from "@/hooks/useProductFilters";
 import { useToast } from "@/hooks/use-toast";
@@ -15,6 +16,7 @@ const ITEMS_PER_PAGE = 9; // Show 9 items per page (3x3 grid)
 
 export const StyleGrid = () => {
   const [sortBy, setSortBy] = useState<SortOption>("match");
+  const [showAnalytics, setShowAnalytics] = useState(false);
   const { items, isLoading, error, fetchMatches, toggleFavorite } = useStyleMatches();
   const { user } = useAuth();
   const { toast } = useToast();
@@ -99,8 +101,18 @@ export const StyleGrid = () => {
           availableStores={availableStores}
           availableCategories={availableCategories}
         />
-        <ProductSort sortBy={sortBy} onSort={setSortBy} />
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => setShowAnalytics(!showAnalytics)}
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {showAnalytics ? "Hide Analytics" : "Show Analytics"}
+          </button>
+          <ProductSort sortBy={sortBy} onSort={setSortBy} />
+        </div>
       </div>
+      
+      {showAnalytics && <MatchAnalytics matches={items} />}
       
       <ProductGrid items={paginatedItems} onFavorite={toggleFavorite} />
       
