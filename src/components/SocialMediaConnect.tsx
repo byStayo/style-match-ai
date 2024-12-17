@@ -8,7 +8,7 @@ export const SocialMediaConnect = () => {
   const [isLoading, setIsLoading] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const handleConnect = async (platform: "Instagram" | "Facebook" | "TikTok") => {
+  const handleConnect = async (platform: "instagram" | "facebook" | "tiktok") => {
     const { data: { session } } = await supabase.auth.getSession();
     
     if (!session) {
@@ -22,26 +22,18 @@ export const SocialMediaConnect = () => {
 
     setIsLoading(platform);
     try {
-      // Here we would normally implement OAuth 2.0 flow
-      // For now, we'll simulate the connection
-      await supabase
-        .from('profiles')
-        .update({
-          preferences: {
-            connectedAccounts: {
-              [platform.toLowerCase()]: {
-                connected: true,
-                lastSync: new Date().toISOString(),
-              }
-            }
-          }
-        })
-        .eq('id', session.user.id);
-
-      toast({
-        title: "Success!",
-        description: `Connected to ${platform} successfully.`,
+      const { data, error } = await supabase.functions.invoke('social-connect', {
+        body: { platform },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
       });
+
+      if (error) throw error;
+      if (!data?.url) throw new Error('No OAuth URL returned');
+
+      // Redirect to OAuth URL
+      window.location.href = data.url;
     } catch (error) {
       console.error(`${platform} connection error:`, error);
       toast({
@@ -54,30 +46,47 @@ export const SocialMediaConnect = () => {
     }
   };
 
-  const handlePublicProfile = async () => {
-    const url = prompt("Enter a public profile URL:");
-    if (!url) return;
+  const handleExtractStyle = async () => {
+    const handle = prompt("Enter an Instagram handle to analyze:");
+    if (!handle) return;
 
-    try {
-      // Here we would validate and process the public profile URL
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
       toast({
-        title: "Profile Analysis",
-        description: "Analyzing style preferences from public profile...",
-      });
-      
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      toast({
-        title: "Analysis Complete",
-        description: "Style preferences have been analyzed and saved.",
-      });
-    } catch (error) {
-      toast({
-        title: "Analysis Failed",
-        description: "Failed to analyze profile. Please check the URL and try again.",
+        title: "Authentication Required",
+        description: "Please sign in to analyze social media profiles.",
         variant: "destructive",
       });
+      return;
+    }
+
+    setIsLoading('extract');
+    try {
+      const { error } = await supabase.functions.invoke('social-extract', {
+        body: { 
+          platform: 'instagram',
+          targetHandle: handle
+        },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Analysis Complete",
+        description: "Style profile has been created from social media content.",
+      });
+    } catch (error) {
+      console.error('Style extraction error:', error);
+      toast({
+        title: "Analysis Failed",
+        description: "Failed to analyze profile. Please check the handle and try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(null);
     }
   };
 
@@ -86,32 +95,32 @@ export const SocialMediaConnect = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Button
           variant="outline"
-          onClick={() => handleConnect("Instagram")}
+          onClick={() => handleConnect("instagram")}
           disabled={!!isLoading}
           className="w-full"
         >
           <Instagram className="mr-2 h-4 w-4" />
-          {isLoading === "Instagram" ? "Connecting..." : "Connect Instagram"}
+          {isLoading === "instagram" ? "Connecting..." : "Connect Instagram"}
         </Button>
         
         <Button
           variant="outline"
-          onClick={() => handleConnect("Facebook")}
+          onClick={() => handleConnect("facebook")}
           disabled={!!isLoading}
           className="w-full"
         >
           <Facebook className="mr-2 h-4 w-4" />
-          {isLoading === "Facebook" ? "Connecting..." : "Connect Facebook"}
+          {isLoading === "facebook" ? "Connecting..." : "Connect Facebook"}
         </Button>
         
         <Button
           variant="outline"
-          onClick={() => handleConnect("TikTok")}
+          onClick={() => handleConnect("tiktok")}
           disabled={!!isLoading}
           className="w-full"
         >
           <Video className="mr-2 h-4 w-4" />
-          {isLoading === "TikTok" ? "Connecting..." : "Connect TikTok"}
+          {isLoading === "tiktok" ? "Connecting..." : "Connect TikTok"}
         </Button>
       </div>
 
@@ -126,11 +135,11 @@ export const SocialMediaConnect = () => {
 
       <Button
         variant="secondary"
-        onClick={handlePublicProfile}
+        onClick={handleExtractStyle}
         className="w-full"
         disabled={!!isLoading}
       >
-        Analyze Public Profile
+        {isLoading === 'extract' ? 'Analyzing...' : 'Analyze Social Profile'}
       </Button>
     </div>
   );

@@ -1,0 +1,10 @@
+project_id = "ynlepnfnhyeswtiakyve"
+
+[functions.social-connect]
+verify_jwt = true
+
+[functions.social-callback]
+verify_jwt = false
+
+[functions.social-extract]
+verify_jwt = true
