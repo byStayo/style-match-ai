@@ -1,33 +1,86 @@
 import { Button } from "@/components/ui/button";
 import { Apple, LogIn } from "lucide-react";
 import { useState } from "react";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
+import { auth, db } from "@/lib/firebase";
+import { 
+  signInWithPopup, 
+  GoogleAuthProvider, 
+  OAuthProvider,
+  signInAnonymously 
+} from "firebase/auth";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 
 export const AuthButtons = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  const handleSignIn = (provider: string) => {
+  const handleSignIn = async (provider: "Apple" | "Google") => {
     setIsLoading(true);
-    // Placeholder for actual Firebase authentication
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      const authProvider = provider === "Apple" 
+        ? new OAuthProvider('apple.com')
+        : new GoogleAuthProvider();
+      
+      const result = await signInWithPopup(auth, authProvider);
+      const user = result.user;
+
+      // Store user data in Firestore
+      await setDoc(doc(db, "users", user.uid), {
+        email: user.email,
+        displayName: user.displayName,
+        photoURL: user.photoURL,
+        provider: provider.toLowerCase(),
+        lastLogin: serverTimestamp(),
+        preferences: {},
+        uploads: [],
+        favorites: []
+      }, { merge: true });
+
       toast({
-        title: "Coming Soon",
-        description: `${provider} sign-in will be available soon!`,
+        title: "Welcome!",
+        description: `Successfully signed in with ${provider}`,
       });
-    }, 1000);
+    } catch (error) {
+      console.error("Auth error:", error);
+      toast({
+        title: "Authentication Error",
+        description: "Failed to sign in. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleGuestAccess = () => {
+  const handleGuestAccess = async () => {
     setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      const result = await signInAnonymously(auth);
+      
+      // Store anonymous user data
+      await setDoc(doc(db, "users", result.user.uid), {
+        isAnonymous: true,
+        lastLogin: serverTimestamp(),
+        preferences: {},
+        uploads: [],
+        favorites: []
+      }, { merge: true });
+
       toast({
         title: "Welcome!",
         description: "You're continuing as a guest. Some features may be limited.",
       });
-    }, 1000);
+    } catch (error) {
+      console.error("Guest auth error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to continue as guest. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
