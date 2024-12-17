@@ -6,7 +6,17 @@ export interface ProductMatch {
   product_price: number;
   store_name: string;
   match_score: number;
-  match_explanation: string | null;
+  match_explanation?: string;
   is_favorite: boolean;
-  created_at: string;
+  created_at?: string;
+}
+
+export interface StyleMatch {
+  id: string;
+  user_id: string;
+  product_id: string;
+  match_score: number;
+  match_explanation?: string;
+  is_favorite: boolean;
+  created_at?: string;
 }

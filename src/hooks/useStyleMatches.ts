@@ -9,7 +9,7 @@ export const useStyleMatches = () => {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
-  const fetchMatches = async (sortBy: SortOption) => {
+  const fetchMatches = async (sortBy: SortOption = 'match') => {
     try {
       const { data: session } = await supabase.auth.getSession();
       if (!session?.session?.user) {
@@ -18,16 +18,56 @@ export const useStyleMatches = () => {
         return;
       }
 
-      const { data, error } = await supabase
-        .from('product_matches')
-        .select('*')
+      // First get the user's latest style upload embedding
+      const { data: styleUploads } = await supabase
+        .from('style_uploads')
+        .select('embedding')
         .eq('user_id', session.session.user.id)
-        .order(sortBy === 'match' ? 'match_score' : sortBy === 'price' ? 'product_price' : 'created_at', 
-               { ascending: sortBy === 'price' });
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (!styleUploads?.[0]?.embedding) {
+        setItems([]);
+        setIsLoading(false);
+        return;
+      }
+
+      // Get user's store preferences
+      const { data: storePrefs } = await supabase
+        .from('user_store_preferences')
+        .select('store_id')
+        .eq('user_id', session.session.user.id)
+        .eq('is_favorite', true);
+
+      const storeIds = storePrefs?.map(pref => pref.store_id) || [];
+
+      // Get products from preferred stores with vector similarity
+      const { data: matches, error } = await supabase
+        .rpc('match_products', {
+          query_embedding: styleUploads[0].embedding,
+          match_threshold: 0.5,
+          match_count: 30,
+          store_ids: storeIds
+        });
 
       if (error) throw error;
 
-      setItems(data || []);
+      // Transform matches into ProductMatch format
+      const productMatches: ProductMatch[] = matches.map(match => ({
+        id: match.id,
+        product_url: match.product_url,
+        product_image: match.product_image,
+        product_title: match.product_title,
+        product_price: match.product_price,
+        store_name: match.store_name,
+        match_score: match.similarity,
+        match_explanation: `This item matches your style with ${Math.round(match.similarity * 100)}% confidence`,
+        is_favorite: match.is_favorite || false
+      }));
+
+      // Sort matches based on user preference
+      const sortedMatches = sortMatches(productMatches, sortBy);
+      setItems(sortedMatches);
     } catch (error) {
       console.error('Error fetching matches:', error);
       toast({
@@ -38,6 +78,20 @@ export const useStyleMatches = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const sortMatches = (matches: ProductMatch[], sortBy: SortOption): ProductMatch[] => {
+    return [...matches].sort((a, b) => {
+      switch (sortBy) {
+        case 'price':
+          return a.product_price - b.product_price;
+        case 'recent':
+          return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+        case 'match':
+        default:
+          return b.match_score - a.match_score;
+      }
+    });
   };
 
   const toggleFavorite = async (id: string) => {
