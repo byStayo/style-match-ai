@@ -2,15 +2,16 @@ import { Button } from "@/components/ui/button";
 import { Instagram, Facebook, Video } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { auth, db } from "@/lib/firebase";
-import { doc, updateDoc, arrayUnion } from "firebase/firestore";
+import { supabase } from "@/integrations/supabase/client";
 
 export const SocialMediaConnect = () => {
   const [isLoading, setIsLoading] = useState<string | null>(null);
   const { toast } = useToast();
 
   const handleConnect = async (platform: "Instagram" | "Facebook" | "TikTok") => {
-    if (!auth.currentUser) {
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session) {
       toast({
         title: "Authentication Required",
         description: "Please sign in to connect your social media accounts.",
@@ -23,12 +24,19 @@ export const SocialMediaConnect = () => {
     try {
       // Here we would normally implement OAuth 2.0 flow
       // For now, we'll simulate the connection
-      await updateDoc(doc(db, "users", auth.currentUser.uid), {
-        [`connectedAccounts.${platform.toLowerCase()}`]: {
-          connected: true,
-          lastSync: new Date().toISOString(),
-        }
-      });
+      await supabase
+        .from('profiles')
+        .update({
+          preferences: {
+            connectedAccounts: {
+              [platform.toLowerCase()]: {
+                connected: true,
+                lastSync: new Date().toISOString(),
+              }
+            }
+          }
+        })
+        .eq('id', session.user.id);
 
       toast({
         title: "Success!",
