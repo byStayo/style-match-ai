@@ -15,21 +15,89 @@ interface StoreProduct {
   description?: string;
 }
 
+async function fetchZaraProducts(): Promise<StoreProduct[]> {
+  console.log('Fetching Zara products...');
+  try {
+    const response = await fetch('https://www.zara.com/us/en/categories/1030040800/products?ajax=true');
+    const data = await response.json();
+    
+    return data.products.map((product: any) => ({
+      url: `https://www.zara.com/us/en/product/${product.seo.keyword}/${product.seo.seoProductId}.html`,
+      image: product.images[0].url,
+      title: product.name,
+      price: product.price / 100, // Convert cents to dollars
+      description: product.description
+    }));
+  } catch (error) {
+    console.error('Error fetching Zara products:', error);
+    return [];
+  }
+}
+
+async function fetchHMProducts(): Promise<StoreProduct[]> {
+  console.log('Fetching H&M products...');
+  try {
+    const response = await fetch('https://www2.hm.com/en_us/women/products/view-all.html?sort=stock&image-size=small&image=model&offset=0&page-size=40');
+    const html = await response.text();
+    
+    // Basic HTML parsing (in production, use a proper HTML parser)
+    const products = [];
+    const productMatches = html.match(/<article class="product-item".*?<\/article>/gs) || [];
+    
+    for (const productHtml of productMatches) {
+      const urlMatch = productHtml.match(/href="([^"]+)"/);
+      const imageMatch = productHtml.match(/data-src="([^"]+)"/);
+      const titleMatch = productHtml.match(/data-title="([^"]+)"/);
+      const priceMatch = productHtml.match(/data-price="([^"]+)"/);
+      
+      if (urlMatch && imageMatch && titleMatch && priceMatch) {
+        products.push({
+          url: `https://www2.hm.com${urlMatch[1]}`,
+          image: imageMatch[1],
+          title: titleMatch[1],
+          price: parseFloat(priceMatch[1]),
+        });
+      }
+    }
+    
+    return products;
+  } catch (error) {
+    console.error('Error fetching H&M products:', error);
+    return [];
+  }
+}
+
+async function fetchUniqloProducts(): Promise<StoreProduct[]> {
+  console.log('Fetching Uniqlo products...');
+  try {
+    const response = await fetch('https://www.uniqlo.com/us/api/commerce/v5/en/products?path=women&offset=0&limit=40');
+    const data = await response.json();
+    
+    return data.items.map((item: any) => ({
+      url: `https://www.uniqlo.com/us/en/products/${item.productId}`,
+      image: item.images.main,
+      title: item.name,
+      price: item.prices.base,
+      description: item.description
+    }));
+  } catch (error) {
+    console.error('Error fetching Uniqlo products:', error);
+    return [];
+  }
+}
+
 async function fetchProductsFromStore(storeName: string): Promise<StoreProduct[]> {
-  // This is a mock implementation. In production, you would:
-  // 1. Use store-specific APIs (if available)
-  // 2. Use web scraping (if needed)
-  // 3. Handle pagination and rate limiting
-  return [
-    {
-      url: 'https://example.com/product1',
-      image: 'https://example.com/product1.jpg',
-      title: 'Sample Product 1',
-      price: 29.99,
-      description: 'A beautiful sample product'
-    },
-    // Add more mock products
-  ];
+  switch (storeName.toLowerCase()) {
+    case 'zara':
+      return await fetchZaraProducts();
+    case 'hm':
+      return await fetchHMProducts();
+    case 'uniqlo':
+      return await fetchUniqloProducts();
+    default:
+      console.warn(`Store ${storeName} not supported`);
+      return [];
+  }
 }
 
 async function analyzeProductImage(imageUrl: string, analysisProvider: 'huggingface' | 'openai'): Promise<{
