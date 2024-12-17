@@ -9,6 +9,7 @@ export interface ProductMatch {
   match_explanation?: string;
   is_favorite: boolean;
   created_at?: string;
+  style_tags?: string[];
 }
 
 export interface StyleMatch {

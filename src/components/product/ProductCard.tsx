@@ -42,6 +42,15 @@ export const ProductCard = ({ item, onFavorite }: ProductCardProps) => {
           <p className="text-sm text-muted-foreground line-clamp-2">
             {item.match_explanation || `This item matches your style preferences`}
           </p>
+          {item.style_tags && item.style_tags.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {item.style_tags.slice(0, 3).map((tag) => (
+                <Badge key={tag} variant="secondary" className="text-xs">
+                  {tag}
+                </Badge>
+              ))}
+            </div>
+          )}
           <div className="flex justify-between items-center">
             <span className="font-semibold">${item.product_price.toFixed(2)}</span>
             <Button 
