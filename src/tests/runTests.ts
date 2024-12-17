@@ -11,23 +11,20 @@ async function runTests() {
       }
     });
 
-    // Start Vitest and wait for it to be ready
+    // Start Vitest
     await vitest.start();
-    
-    // Get the test runner instance
-    const testRunner = vitest.getProcess();
-    
-    // Wait for all tests to complete
-    await testRunner.waitForComplete();
 
-    const failedTests = testRunner.state.getFailedTests();
-    if (failedTests.length > 0) {
-      console.error('Test failures:', failedTests);
+    // Run the tests
+    const ctx = await vitest.run();
+    
+    // Check for failures
+    if (ctx.state.getCountOfFailedTests() > 0) {
+      console.error('Test failures:', ctx.state.getTestResults());
       process.exit(1);
     }
 
     console.log('All tests passed!');
-    const coverage = testRunner.state.getCoverage();
+    const coverage = ctx.state.getCoverage();
     if (coverage) {
       console.log('Coverage:', coverage);
     }
