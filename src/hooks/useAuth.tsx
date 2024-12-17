@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
+import { Database } from "@/integrations/supabase/types";
+
+type Profile = Database['public']['Tables']['profiles']['Row'];
 
 export interface UserData {
   email?: string | null;
@@ -72,7 +75,7 @@ export const useAuth = () => {
           email: user?.email,
           displayName: data.full_name,
           photoURL: data.avatar_url,
-          preferences: data.preferences,
+          preferences: data.preferences || {},
           uploads: [],  // We'll fetch these separately if needed
           favorites: [], // We'll fetch these separately if needed
           connectedAccounts: {} // We'll fetch these separately if needed
