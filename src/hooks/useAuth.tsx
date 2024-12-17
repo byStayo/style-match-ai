@@ -19,6 +19,9 @@ export interface UserData {
   };
   uploads: string[];
   favorites: string[];
+  subscription_status?: string;
+  subscription_tier?: string;
+  openai_api_key?: string;
   connectedAccounts?: {
     instagram?: {
       connected: boolean;

@@ -3,20 +3,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ImageUpload } from "@/components/ImageUpload";
 import { SocialMediaConnect } from "@/components/SocialMediaConnect";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { User, Image, Heart, Palette, Link, Settings } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { APISettings } from "./profile/APISettings";
+import { SubscriptionStatus } from "./profile/SubscriptionStatus";
 
 export const ProfileSection = () => {
   const { user, userData } = useAuth();
   const { toast } = useToast();
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
-  const [apiKey, setApiKey] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
 
   const colors = [
     "red", "blue", "green", "yellow", "purple", "pink", "orange", "brown", "black", "white"
@@ -33,34 +30,6 @@ export const ProfileSection = () => {
       title: "Preferences Updated",
       description: `${color} has been ${selectedColors.includes(color) ? "removed from" : "added to"} your preferences.`
     });
-  };
-
-  const handleSaveApiKey = async () => {
-    if (!user) return;
-    
-    setIsLoading(true);
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ openai_api_key: apiKey })
-        .eq('id', user.id);
-
-      if (error) throw error;
-
-      toast({
-        title: "API Key Saved",
-        description: "Your OpenAI API key has been saved successfully.",
-      });
-    } catch (error) {
-      console.error('Error saving API key:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save API key. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   if (!user) {
@@ -189,51 +158,8 @@ export const ProfileSection = () => {
 
           <TabsContent value="settings" className="mt-4">
             <div className="space-y-6">
-              <div>
-                <h3 className="text-lg font-semibold mb-4">API Settings</h3>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="openai-api-key">OpenAI API Key</Label>
-                    <Input
-                      id="openai-api-key"
-                      type="password"
-                      placeholder="sk-..."
-                      value={apiKey}
-                      onChange={(e) => setApiKey(e.target.value)}
-                    />
-                    <p className="text-sm text-muted-foreground">
-                      Enter your OpenAI API key to use unlimited image analysis. You can get your API key from the{" "}
-                      <a 
-                        href="https://platform.openai.com/api-keys" 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline"
-                      >
-                        OpenAI dashboard
-                      </a>
-                      .
-                    </p>
-                  </div>
-                  <Button 
-                    onClick={handleSaveApiKey} 
-                    disabled={isLoading || !apiKey}
-                  >
-                    {isLoading ? "Saving..." : "Save API Key"}
-                  </Button>
-                </div>
-              </div>
-              
-              <div>
-                <h3 className="text-lg font-semibold mb-4">Subscription Status</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Current Plan: {userData?.subscription_status === 'premium' ? 'Premium' : 'Free'}
-                </p>
-                {userData?.subscription_status !== 'premium' && (
-                  <Button variant="default">
-                    Upgrade to Premium
-                  </Button>
-                )}
-              </div>
+              <APISettings user={user} />
+              <SubscriptionStatus userData={userData} />
             </div>
           </TabsContent>
         </Tabs>
