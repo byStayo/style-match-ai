@@ -5,9 +5,10 @@ import { AuthButtons } from "../AuthButtons";
 interface GuestAuthPromptProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onContinueAsGuest: () => void;
 }
 
-export const GuestAuthPrompt = ({ open, onOpenChange }: GuestAuthPromptProps) => {
+export const GuestAuthPrompt = ({ open, onOpenChange, onContinueAsGuest }: GuestAuthPromptProps) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -21,7 +22,10 @@ export const GuestAuthPrompt = ({ open, onOpenChange }: GuestAuthPromptProps) =>
           <AuthButtons />
           <Button 
             variant="ghost" 
-            onClick={() => onOpenChange(false)}
+            onClick={() => {
+              onContinueAsGuest();
+              onOpenChange(false);
+            }}
             className="w-full"
           >
             Continue as Guest

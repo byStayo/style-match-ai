@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
+import { HfInference } from 'https://esm.sh/@huggingface/inference@2.3.2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -23,83 +24,66 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Get user from auth header
+    // Get user from auth header if available
     const authHeader = req.headers.get('Authorization')?.split('Bearer ')[1]
-    if (!authHeader) {
-      throw new Error('No authorization header')
+    let userId = null;
+
+    if (authHeader) {
+      const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(authHeader)
+      if (!userError && user) {
+        userId = user.id;
+
+        // Check user's subscription status and upload count for authenticated users
+        const { data: profile } = await supabaseAdmin
+          .from('profiles')
+          .select('subscription_tier, upload_count')
+          .eq('id', user.id)
+          .single()
+
+        if (profile) {
+          const uploadLimit = profile.subscription_tier === 'premium' ? 1000 : 5
+          if (profile.upload_count >= uploadLimit) {
+            throw new Error(`Upload limit reached. Please upgrade to premium for more uploads.`)
+          }
+
+          // Increment upload count for authenticated users
+          await supabaseAdmin
+            .from('profiles')
+            .update({ upload_count: (profile.upload_count || 0) + 1 })
+            .eq('id', user.id)
+        }
+      }
     }
 
-    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(authHeader)
-    if (userError || !user) {
-      throw new Error('Unauthorized')
-    }
-
-    // Check user's subscription status and upload count
-    const { data: profile } = await supabaseAdmin
-      .from('profiles')
-      .select('subscription_tier, upload_count')
-      .eq('id', user.id)
-      .single()
-
-    if (!profile) {
-      throw new Error('User profile not found')
-    }
-
-    const uploadLimit = profile.subscription_tier === 'premium' ? 1000 : 5
-    if (profile.upload_count >= uploadLimit) {
-      throw new Error(`Upload limit reached. Please upgrade to premium for more uploads.`)
-    }
-
-    // Increment upload count
-    await supabaseAdmin
-      .from('profiles')
-      .update({ upload_count: (profile.upload_count || 0) + 1 })
-      .eq('id', user.id)
-
-    // Fetch image data
-    const imageData = await fetch(imageUrl).then(r => r.blob())
-    
     // Analyze image based on provider
     const analysis = analysisProvider === 'openai' 
-      ? await analyzeWithOpenAI(imageData)
-      : await analyzeWithHuggingFace(imageData)
+      ? await analyzeWithOpenAI(imageUrl)
+      : await analyzeWithHuggingFace(imageUrl)
 
-    // Update the style_uploads table with analysis results
-    const { error: updateError } = await supabaseAdmin
-      .from('style_uploads')
-      .update({
-        embedding: analysis.embedding,
-        metadata: {
-          style_tags: analysis.styleTags,
-          analysis_completed: true,
-          analyzed_at: new Date().toISOString(),
-          analysis_provider: analysisProvider,
-        }
-      })
-      .eq('image_url', imageUrl)
-      .eq('user_id', user.id)
+    // Store analysis results
+    if (userId) {
+      const { error: updateError } = await supabaseAdmin
+        .from('style_uploads')
+        .insert({
+          user_id: userId,
+          image_url: imageUrl,
+          upload_type: 'clothing',
+          embedding: analysis.embedding,
+          metadata: {
+            style_tags: analysis.styleTags,
+            analysis_completed: true,
+            analyzed_at: new Date().toISOString(),
+            analysis_provider: analysisProvider,
+          }
+        })
 
-    if (updateError) {
-      throw updateError
-    }
-
-    // Find matching products using vector similarity
-    const { data: products, error: productsError } = await supabaseAdmin
-      .rpc('match_products', {
-        query_embedding: analysis.embedding,
-        similarity_threshold: 0.7,
-        match_count: 10
-      })
-
-    if (productsError) {
-      throw productsError
+      if (updateError) throw updateError
     }
 
     return new Response(
       JSON.stringify({
         success: true,
         style_tags: analysis.styleTags,
-        matches_found: products?.length ?? 0,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
@@ -115,3 +99,67 @@ serve(async (req) => {
     )
   }
 })
+
+async function analyzeWithHuggingFace(imageUrl: string) {
+  const hf = new HfInference(Deno.env.get('HUGGING_FACE_ACCESS_TOKEN'))
+  
+  const embedding = await hf.featureExtraction({
+    model: 'openai/clip-vit-base-patch32',
+    data: imageUrl,
+  })
+
+  const classification = await hf.imageClassification({
+    model: 'apple/mobilevitv2-1.0-imagenet1k-256',
+    data: imageUrl,
+  })
+
+  return {
+    embedding,
+    styleTags: classification
+      .filter(c => c.score > 0.1)
+      .map(c => c.label),
+  }
+}
+
+async function analyzeWithOpenAI(imageUrl: string) {
+  const openaiKey = Deno.env.get('OPENAI_API_KEY')
+  if (!openaiKey) throw new Error('OpenAI API key not configured')
+
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${openaiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: 'Analyze this product image and provide style tags. Format as JSON with "tags" array.',
+            },
+            {
+              type: 'image_url',
+              image_url: { url: imageUrl },
+            },
+          ],
+        },
+      ],
+      max_tokens: 500,
+    }),
+  })
+
+  const data = await response.json()
+  const analysis = JSON.parse(data.choices[0].message.content)
+  
+  // Generate a simple embedding (in production, use a proper embedding model)
+  const embedding = new Array(512).fill(0)
+  
+  return {
+    embedding,
+    styleTags: analysis.tags,
+  }
+}

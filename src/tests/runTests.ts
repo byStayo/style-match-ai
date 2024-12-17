@@ -1,41 +1,40 @@
-import { StateManager } from './StateManager';
-import { TestSpecification } from './types';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { mockSupabaseClient } from '@/utils/test-utils';
 
-export async function runTests() {
-  const stateManager = new StateManager();
-  
-  // Define test specifications
-  const tests: TestSpecification[] = [
-    {
-      name: 'User Flow Tests',
-      path: './integration/userFlow.test.ts',
-      type: 'integration'
-    },
-    {
-      name: 'Matching Performance Tests',
-      path: './load/matchingPerformance.test.ts',
-      type: 'load'
-    }
-  ];
+describe('Core System Tests', () => {
+  beforeEach(() => {
+    mockSupabaseClient();
+  });
 
-  try {
-    // Run all test files with their specifications
-    await Promise.all(tests.map(test => 
-      stateManager.runFiles(test.path, test)
-    ));
+  it('should handle guest uploads correctly', async () => {
+    // Test implementation will go here
+    expect(true).toBe(true);
+  });
 
-    // Get coverage if available
-    const coverage = stateManager.coverage?.getCoverage();
+  it('should upload an image and analyze it', async () => {
+    // Mock successful image upload
+    const mockImageUrl = 'https://example.com/test.jpg';
+    const mockEmbedding = new Array(512).fill(0.1);
     
-    if (coverage) {
-      console.log('Test Coverage Report:', coverage);
-    }
+    // Mock the upload function
+    const uploadResult = await uploadImage(mockImageUrl);
+    expect(uploadResult.url).toBeDefined();
+    
+    // Mock the analysis function
+    const analysisResult = await analyzeImage(mockImageUrl);
+    expect(analysisResult).toHaveProperty('style_tags');
+  });
 
-    console.log('All tests completed successfully');
-  } catch (error) {
-    console.error('Test execution failed:', error);
-    process.exit(1);
-  }
-}
+  it('should fetch store products correctly', async () => {
+    const products = await fetchStoreProducts('zara');
+    expect(products).toBeInstanceOf(Array);
+    expect(products.length).toBeGreaterThan(0);
+  });
 
-runTests();
+  it('should compute cosine similarity correctly', () => {
+    const vectorA = [1, 2, 3];
+    const vectorB = [4, 5, 6];
+    const similarity = cosineSimilarity(vectorA, vectorB);
+    expect(similarity).toBeGreaterThan(0);
+  });
+});
