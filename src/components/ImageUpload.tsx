@@ -7,6 +7,9 @@ import { UploadDropzone } from "./upload/UploadDropzone";
 import { ErrorDialog } from "./upload/ErrorDialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { AuthButtons } from "./AuthButtons";
 
 export const ImageUpload = () => {
   const [preview, setPreview] = useState<string | null>(null);
@@ -14,6 +17,7 @@ export const ImageUpload = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [analysisProvider, setAnalysisProvider] = useState<'huggingface' | 'openai'>('huggingface');
+  const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const { toast } = useToast();
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -33,15 +37,10 @@ export const ImageUpload = () => {
         throw new Error("Image size should be less than 5MB");
       }
 
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session?.user) {
-        throw new Error("Please sign in to upload images");
-      }
-
-      // Create a unique file name
+      // Create a unique file name for guest uploads
       const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const filePath = `${sessionData.session.user.id}/${fileName}`;
+      const fileName = `guest_${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `guest/${fileName}`;
 
       // Show upload starting
       setUploadProgress(10);
@@ -60,33 +59,44 @@ export const ImageUpload = () => {
         .from('style-uploads')
         .getPublicUrl(filePath);
 
-      // Save to style_uploads table
-      const { error: dbError } = await supabase
-        .from('style_uploads')
-        .insert({
-          user_id: sessionData.session.user.id,
-          image_url: publicUrl,
-          upload_type: 'user_upload',
-          image_type: 'clothing',
-          metadata: {
-            original_filename: file.name,
-            content_type: file.type,
-            size: file.size
-          }
-        });
-
-      if (dbError) throw dbError;
-
       setPreview(URL.createObjectURL(file));
       setUploadProgress(100);
       
-      toast({
-        title: "Upload successful",
-        description: "Your image has been uploaded and will be analyzed for style matching.",
-      });
+      // Check if user is authenticated
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session?.user) {
+        // Show auth prompt after successful upload for guest users
+        setShowAuthPrompt(true);
+        toast({
+          title: "Upload successful",
+          description: "Create an account to save your style preferences and get personalized recommendations!",
+        });
+      } else {
+        // For authenticated users, save to style_uploads table
+        const { error: dbError } = await supabase
+          .from('style_uploads')
+          .insert({
+            user_id: sessionData.session.user.id,
+            image_url: publicUrl,
+            upload_type: 'user_upload',
+            image_type: 'clothing',
+            metadata: {
+              original_filename: file.name,
+              content_type: file.type,
+              size: file.size
+            }
+          });
 
-      // Trigger style analysis with selected provider
-      await analyzeStyle(publicUrl);
+        if (dbError) throw dbError;
+
+        toast({
+          title: "Upload successful",
+          description: "Your image has been uploaded and will be analyzed for style matching.",
+        });
+
+        // Trigger style analysis with selected provider
+        await analyzeStyle(publicUrl);
+      }
 
     } catch (err) {
       console.error("Upload error:", err);
@@ -104,7 +114,14 @@ export const ImageUpload = () => {
   const analyzeStyle = async (imageUrl: string) => {
     try {
       const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session) throw new Error('Authentication required');
+      if (!sessionData.session) {
+        // For guest users, show limited analysis results
+        toast({
+          title: "Limited Analysis",
+          description: "Create an account to get full style analysis and personalized recommendations!",
+        });
+        return;
+      }
 
       const response = await supabase.functions.invoke('analyze-style', {
         body: { 
@@ -176,6 +193,30 @@ export const ImageUpload = () => {
         error={error}
         onClose={() => setError(null)}
       />
+
+      <Dialog open={showAuthPrompt} onOpenChange={setShowAuthPrompt}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Save Your Style Preferences</DialogTitle>
+            <DialogDescription>
+              Create an account to save your style preferences, get personalized recommendations, and access your style history.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <AuthButtons />
+            <Button 
+              variant="ghost" 
+              onClick={() => setShowAuthPrompt(false)}
+              className="w-full"
+            >
+              Continue as Guest
+            </Button>
+            <p className="text-sm text-muted-foreground text-center">
+              Note: Guest uploads are temporary and will be deleted after 24 hours.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
