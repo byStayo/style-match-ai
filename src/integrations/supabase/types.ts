@@ -104,7 +104,9 @@ export type Database = {
           created_at: string
           full_name: string | null
           id: string
+          openai_api_key: string | null
           preferences: Json | null
+          subscription_status: string | null
           subscription_tier: string | null
           updated_at: string
           username: string | null
@@ -114,7 +116,9 @@ export type Database = {
           created_at?: string
           full_name?: string | null
           id: string
+          openai_api_key?: string | null
           preferences?: Json | null
+          subscription_status?: string | null
           subscription_tier?: string | null
           updated_at?: string
           username?: string | null
@@ -124,7 +128,9 @@ export type Database = {
           created_at?: string
           full_name?: string | null
           id?: string
+          openai_api_key?: string | null
           preferences?: Json | null
+          subscription_status?: string | null
           subscription_tier?: string | null
           updated_at?: string
           username?: string | null
