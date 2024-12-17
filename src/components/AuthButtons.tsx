@@ -56,9 +56,15 @@ export const AuthButtons = () => {
   const handleGuestSignIn = async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: 'guest@example.com',
-        password: 'guestpassword123',
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'github',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          }
+        }
       });
 
       if (error) {
