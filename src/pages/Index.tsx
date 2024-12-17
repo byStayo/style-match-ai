@@ -74,24 +74,24 @@ const Index = () => {
               <section className="bg-background rounded-lg p-8 border">
                 <div className="max-w-2xl mx-auto text-center">
                   <h2 className="text-2xl font-semibold text-foreground mb-4">
-                    Connect Your Social Media
-                  </h2>
-                  <p className="text-muted-foreground mb-8">
-                    Connect your social accounts or analyze public profiles to get personalized recommendations.
-                  </p>
-                  <SocialMediaConnect />
-                </div>
-              </section>
-
-              <section className="bg-background rounded-lg p-8 border">
-                <div className="max-w-2xl mx-auto text-center">
-                  <h2 className="text-2xl font-semibold text-foreground mb-4">
                     Choose Your Stores
                   </h2>
                   <p className="text-muted-foreground mb-8">
                     Select stores to find matching items from your favorite brands.
                   </p>
                   <StoreSelector />
+                </div>
+              </section>
+
+              <section className="bg-background rounded-lg p-8 border">
+                <div className="max-w-2xl mx-auto text-center">
+                  <h2 className="text-2xl font-semibold text-foreground mb-4">
+                    Connect Your Social Media
+                  </h2>
+                  <p className="text-muted-foreground mb-8">
+                    Connect your social accounts or analyze public profiles to get personalized recommendations.
+                  </p>
+                  <SocialMediaConnect />
                 </div>
               </section>
               
