@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Upload, Image as ImageIcon, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -14,6 +15,7 @@ import {
 export const ImageUpload = () => {
   const [preview, setPreview] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -23,6 +25,7 @@ export const ImageUpload = () => {
 
     setError(null);
     setIsLoading(true);
+    setUploadProgress(0);
 
     try {
       if (!file.type.startsWith("image/")) {
@@ -43,12 +46,22 @@ export const ImageUpload = () => {
       const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
       const filePath = `${sessionData.session.user.id}/${fileName}`;
 
+      // Show upload starting
+      setUploadProgress(10);
+
       // Upload to Supabase Storage
       const { error: uploadError } = await supabase.storage
         .from('style-uploads')
-        .upload(filePath, file);
+        .upload(filePath, file, {
+          onUploadProgress: (progress) => {
+            const percent = (progress.loaded / progress.total) * 80;
+            setUploadProgress(10 + percent); // Start at 10%, go up to 90%
+          }
+        });
 
       if (uploadError) throw uploadError;
+
+      setUploadProgress(90);
 
       // Get the public URL
       const { data: { publicUrl } } = supabase.storage
@@ -62,6 +75,7 @@ export const ImageUpload = () => {
           user_id: sessionData.session.user.id,
           image_url: publicUrl,
           upload_type: 'user_upload',
+          image_type: 'clothing',
           metadata: {
             original_filename: file.name,
             content_type: file.type,
@@ -72,6 +86,8 @@ export const ImageUpload = () => {
       if (dbError) throw dbError;
 
       setPreview(URL.createObjectURL(file));
+      setUploadProgress(100);
+      
       toast({
         title: "Upload successful",
         description: "Your image has been uploaded and will be analyzed for style matching.",
@@ -137,7 +153,12 @@ export const ImageUpload = () => {
             <div className="mx-auto w-12 h-12 text-primary">
               <Loader2 className="w-full h-full animate-spin" />
             </div>
-            <p className="text-sm text-gray-500">Processing your image...</p>
+            <Progress value={uploadProgress} className="w-full" />
+            <p className="text-sm text-gray-500">
+              {uploadProgress < 100 
+                ? "Uploading and processing your image..." 
+                : "Finalizing..."}
+            </p>
           </div>
         ) : preview ? (
           <div className="relative w-full aspect-square">

@@ -14,7 +14,6 @@ serve(async (req) => {
 
   try {
     const { imageUrl } = await req.json();
-    console.log('Analyzing style for image:', imageUrl);
 
     // Initialize Supabase client
     const supabaseClient = createClient(
@@ -30,42 +29,30 @@ serve(async (req) => {
       throw new Error('Unauthorized');
     }
 
-    // For now, generate sample matches
-    const sampleMatches = [
-      {
-        user_id: user.id,
-        product_url: 'https://example.com/product1',
-        product_image: imageUrl,
-        product_title: 'Matching Style Item 1',
-        product_price: 99.99,
-        store_name: 'Fashion Store',
-        match_score: 0.95,
-        match_explanation: 'Similar color palette and style elements',
-      },
-      {
-        user_id: user.id,
-        product_url: 'https://example.com/product2',
-        product_image: imageUrl,
-        product_title: 'Matching Style Item 2',
-        product_price: 79.99,
-        store_name: 'Style Boutique',
-        match_score: 0.85,
-        match_explanation: 'Complementary style elements',
-      },
-    ];
+    // For now, we'll use a simple mock analysis
+    // In a real implementation, this would call a computer vision API
+    const mockAnalysis = {
+      colors: ['blue', 'white'],
+      style_tags: ['casual', 'modern'],
+      confidence: 0.85
+    };
 
-    // Insert sample matches
-    const { error: insertError } = await supabaseClient
-      .from('product_matches')
-      .insert(sampleMatches);
+    // Update the style_uploads table with the analysis results
+    const { error: updateError } = await supabaseClient
+      .from('style_uploads')
+      .update({
+        metadata: {
+          ...mockAnalysis,
+          analyzed_at: new Date().toISOString()
+        }
+      })
+      .eq('image_url', imageUrl)
+      .eq('user_id', user.id);
 
-    if (insertError) {
-      console.error('Error inserting matches:', insertError);
-      throw insertError;
-    }
+    if (updateError) throw updateError;
 
     return new Response(
-      JSON.stringify({ success: true, matchCount: sampleMatches.length }),
+      JSON.stringify({ success: true, analysis: mockAnalysis }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
