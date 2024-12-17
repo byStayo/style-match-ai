@@ -1,16 +1,10 @@
 import { useState } from "react";
-import { Upload, Image as ImageIcon, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogDescription,
-} from "@/components/ui/alert-dialog";
+import { UploadProgress } from "./upload/UploadProgress";
+import { UploadPreview } from "./upload/UploadPreview";
+import { UploadDropzone } from "./upload/UploadDropzone";
+import { ErrorDialog } from "./upload/ErrorDialog";
 
 export const ImageUpload = () => {
   const [preview, setPreview] = useState<string | null>(null);
@@ -52,12 +46,7 @@ export const ImageUpload = () => {
       // Upload to Supabase Storage
       const { error: uploadError } = await supabase.storage
         .from('style-uploads')
-        .upload(filePath, file, {
-          onUploadProgress: (progress) => {
-            const percent = (progress.loaded / progress.total) * 80;
-            setUploadProgress(10 + percent); // Start at 10%, go up to 90%
-          }
-        });
+        .upload(filePath, file);
 
       if (uploadError) throw uploadError;
 
@@ -149,61 +138,22 @@ export const ImageUpload = () => {
           disabled={isLoading}
         />
         {isLoading ? (
-          <div className="space-y-4">
-            <div className="mx-auto w-12 h-12 text-primary">
-              <Loader2 className="w-full h-full animate-spin" />
-            </div>
-            <Progress value={uploadProgress} className="w-full" />
-            <p className="text-sm text-gray-500">
-              {uploadProgress < 100 
-                ? "Uploading and processing your image..." 
-                : "Finalizing..."}
-            </p>
-          </div>
+          <UploadProgress progress={uploadProgress} />
         ) : preview ? (
-          <div className="relative w-full aspect-square">
-            <img
-              src={preview}
-              alt="Preview"
-              className="w-full h-full object-cover rounded-lg"
-            />
-          </div>
+          <UploadPreview 
+            preview={preview} 
+            onRemove={() => setPreview(null)}
+            isLoading={isLoading}
+          />
         ) : (
-          <div className="space-y-4">
-            <div className="mx-auto w-12 h-12 text-gray-400">
-              <Upload className="w-full h-full" />
-            </div>
-            <div className="space-y-2">
-              <p className="text-lg font-medium text-gray-900">Upload an image</p>
-              <p className="text-sm text-gray-500">
-                Drag and drop or click to select
-              </p>
-              <p className="text-xs text-gray-400">
-                Maximum file size: 5MB
-              </p>
-            </div>
-          </div>
+          <UploadDropzone />
         )}
       </div>
-      {preview && (
-        <Button
-          onClick={() => setPreview(null)}
-          variant="outline"
-          className="mt-4 w-full"
-          disabled={isLoading}
-        >
-          Remove Image
-        </Button>
-      )}
 
-      <AlertDialog open={!!error} onOpenChange={() => setError(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Error</AlertDialogTitle>
-            <AlertDialogDescription>{error}</AlertDialogDescription>
-          </AlertDialogHeader>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ErrorDialog 
+        error={error}
+        onClose={() => setError(null)}
+      />
     </div>
   );
 };
