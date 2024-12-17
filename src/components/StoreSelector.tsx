@@ -4,13 +4,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Store } from "lucide-react";
+import { Database } from "@/integrations/supabase/types";
 
-interface Store {
-  id: string;
-  name: string;
-  url: string;
-  logo_url: string;
-}
+type Store = Database['public']['Tables']['stores']['Row'];
+type UserStorePreference = Database['public']['Tables']['user_store_preferences']['Row'];
 
 export const StoreSelector = () => {
   const { toast } = useToast();
@@ -20,9 +17,9 @@ export const StoreSelector = () => {
     queryKey: ["stores"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("stores")
-        .select("*")
-        .eq("is_active", true);
+        .from('stores')
+        .select('*')
+        .eq('is_active', true);
 
       if (error) throw error;
       return data as Store[];
@@ -30,7 +27,8 @@ export const StoreSelector = () => {
   });
 
   const handleStoreSelect = async (storeId: string) => {
-    const { data: session } = await supabase.auth.getSession();
+    const { data: sessionData } = await supabase.auth.getSession();
+    const session = sessionData?.session;
     
     if (!session?.user) {
       toast({
@@ -45,13 +43,13 @@ export const StoreSelector = () => {
       if (selectedStores.includes(storeId)) {
         setSelectedStores(selectedStores.filter((id) => id !== storeId));
         await supabase
-          .from("user_store_preferences")
+          .from('user_store_preferences')
           .delete()
           .match({ user_id: session.user.id, store_id: storeId });
       } else {
         setSelectedStores([...selectedStores, storeId]);
         await supabase
-          .from("user_store_preferences")
+          .from('user_store_preferences')
           .upsert({ 
             user_id: session.user.id, 
             store_id: storeId,
@@ -75,14 +73,15 @@ export const StoreSelector = () => {
 
   useEffect(() => {
     const loadUserPreferences = async () => {
-      const { data: session } = await supabase.auth.getSession();
+      const { data: sessionData } = await supabase.auth.getSession();
+      const session = sessionData?.session;
       if (!session?.user) return;
 
       const { data } = await supabase
-        .from("user_store_preferences")
-        .select("store_id")
-        .eq("user_id", session.user.id)
-        .eq("is_favorite", true);
+        .from('user_store_preferences')
+        .select('store_id')
+        .eq('user_id', session.user.id)
+        .eq('is_favorite', true);
 
       if (data) {
         setSelectedStores(data.map((pref) => pref.store_id));

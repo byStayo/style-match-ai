@@ -172,6 +172,36 @@ export type Database = {
           },
         ]
       }
+      stores: {
+        Row: {
+          created_at: string
+          id: string
+          integration_type: Database["public"]["Enums"]["store_type"]
+          is_active: boolean | null
+          logo_url: string | null
+          name: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          integration_type: Database["public"]["Enums"]["store_type"]
+          is_active?: boolean | null
+          logo_url?: string | null
+          name: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          integration_type?: Database["public"]["Enums"]["store_type"]
+          is_active?: boolean | null
+          logo_url?: string | null
+          name?: string
+          url?: string
+        }
+        Relationships: []
+      }
       style_matches: {
         Row: {
           created_at: string | null
@@ -248,6 +278,45 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "style_uploads_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_store_preferences: {
+        Row: {
+          created_at: string
+          id: string
+          is_favorite: boolean | null
+          store_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_favorite?: boolean | null
+          store_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_favorite?: boolean | null
+          store_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_store_preferences_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_store_preferences_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -435,6 +504,7 @@ export type Database = {
     }
     Enums: {
       social_platform: "instagram" | "facebook" | "tiktok"
+      store_type: "api" | "scrape"
       subscription_tier: "free" | "premium"
       upload_type: "clothing" | "selfie" | "inspiration" | "social"
     }
