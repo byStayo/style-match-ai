@@ -13,9 +13,9 @@ export const GuestAuthPrompt = ({ open, onOpenChange, onContinueAsGuest }: Guest
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Save Your Style Preferences</DialogTitle>
+          <DialogTitle>Create Your Style Profile</DialogTitle>
           <DialogDescription>
-            Create an account to save your style preferences, get personalized recommendations, and access your style history.
+            Sign up now to save your style preferences and get unlimited personalized recommendations!
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
@@ -28,10 +28,10 @@ export const GuestAuthPrompt = ({ open, onOpenChange, onContinueAsGuest }: Guest
             }}
             className="w-full"
           >
-            Continue as Guest
+            Try Once Without Account
           </Button>
           <p className="text-sm text-muted-foreground text-center">
-            Note: Guest uploads are temporary and will be deleted after 24 hours.
+            Note: Without an account, your style preferences won't be saved for future recommendations.
           </p>
         </div>
       </DialogContent>

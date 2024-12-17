@@ -17,6 +17,7 @@ export const ImageUpload = () => {
   const [error, setError] = useState<string | null>(null);
   const [analysisProvider, setAnalysisProvider] = useState<'huggingface' | 'openai'>('huggingface');
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
+  const [hasUsedGuestTrial, setHasUsedGuestTrial] = useState(false);
   const { toast } = useToast();
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -74,11 +75,21 @@ export const ImageUpload = () => {
       // Check if user is authenticated
       const { data: sessionData } = await supabase.auth.getSession();
       if (!sessionData.session?.user) {
-        setShowAuthPrompt(true);
-        toast({
-          title: "Upload successful!",
-          description: "Create an account to save your style preferences and get personalized recommendations!",
-        });
+        if (!hasUsedGuestTrial) {
+          setShowAuthPrompt(true);
+          setHasUsedGuestTrial(true);
+          toast({
+            title: "Try StyleMatch AI",
+            description: "Create an account to save your preferences and get unlimited recommendations!",
+          });
+        } else {
+          toast({
+            title: "Account Required",
+            description: "Please create an account to continue using StyleMatch AI.",
+            variant: "destructive",
+          });
+          setPreview(null);
+        }
       } else {
         toast({
           title: "Upload successful!",
@@ -101,8 +112,8 @@ export const ImageUpload = () => {
   const handleContinueAsGuest = () => {
     setShowAuthPrompt(false);
     toast({
-      title: "Continuing as guest",
-      description: "Your uploads will be temporary and will be deleted after 24 hours.",
+      title: "One-Time Trial",
+      description: "Create an account to save your preferences and get unlimited recommendations!",
     });
   };
 
@@ -121,7 +132,7 @@ export const ImageUpload = () => {
             onChange={handleFileChange}
             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
             aria-label="Upload image"
-            disabled={isLoading}
+            disabled={isLoading || (hasUsedGuestTrial && !supabase.auth.getUser())}
           />
           {isLoading ? (
             <UploadProgress progress={uploadProgress} />
