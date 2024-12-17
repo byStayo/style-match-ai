@@ -3,12 +3,13 @@ import { Apple, LogIn } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import type { Provider } from "@supabase/supabase-js";
 
 export const AuthButtons = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  const handleSignIn = async (provider: "apple" | "google") => {
+  const handleSignIn = async (provider: Provider) => {
     setIsLoading(true);
     try {
       const { error } = await supabase.auth.signInWithOAuth({
@@ -43,12 +44,7 @@ export const AuthButtons = () => {
   const handleGuestAccess = async () => {
     setIsLoading(true);
     try {
-      const { data: { session }, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`
-        }
-      });
+      const { error } = await supabase.auth.signInAnonymously();
 
       if (error) throw error;
 
