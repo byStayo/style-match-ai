@@ -1,5 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { mockSupabaseClient } from '@/utils/test-utils';
+import { uploadImage } from '@/utils/upload';
+import { fetchStoreProducts } from '@/utils/store';
+import { cosineSimilarity } from '@/utils/vectors';
+import { analyzeImage } from '@/utils/analysis';
 
 describe('Core System Tests', () => {
   beforeEach(() => {
