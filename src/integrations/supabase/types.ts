@@ -9,6 +9,56 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      product_matches: {
+        Row: {
+          created_at: string
+          id: string
+          is_favorite: boolean | null
+          match_explanation: string | null
+          match_score: number
+          product_image: string
+          product_price: number
+          product_title: string
+          product_url: string
+          store_name: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_favorite?: boolean | null
+          match_explanation?: string | null
+          match_score: number
+          product_image: string
+          product_price: number
+          product_title: string
+          product_url: string
+          store_name: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_favorite?: boolean | null
+          match_explanation?: string | null
+          match_score?: number
+          product_image?: string
+          product_price?: number
+          product_title?: string
+          product_url?: string
+          store_name?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_matches_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null

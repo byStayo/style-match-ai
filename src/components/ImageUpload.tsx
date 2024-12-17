@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Upload, Image as ImageIcon, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -20,42 +21,97 @@ export const ImageUpload = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Reset states
     setError(null);
     setIsLoading(true);
 
     try {
-      // Validate file type
       if (!file.type.startsWith("image/")) {
         throw new Error("Please upload an image file");
       }
 
-      // Validate file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
         throw new Error("Image size should be less than 5MB");
       }
 
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreview(reader.result as string);
-        setIsLoading(false);
-        toast({
-          title: "Image uploaded successfully",
-          description: "Your image is ready for style analysis",
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session?.user) {
+        throw new Error("Please sign in to upload images");
+      }
+
+      // Create a unique file name
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `${sessionData.session.user.id}/${fileName}`;
+
+      // Upload to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('style-uploads')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      // Get the public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('style-uploads')
+        .getPublicUrl(filePath);
+
+      // Save to style_uploads table
+      const { error: dbError } = await supabase
+        .from('style_uploads')
+        .insert({
+          user_id: sessionData.session.user.id,
+          image_url: publicUrl,
+          upload_type: 'user_upload',
+          metadata: {
+            original_filename: file.name,
+            content_type: file.type,
+            size: file.size
+          }
         });
-      };
 
-      reader.onerror = () => {
-        throw new Error("Failed to read the image file");
-      };
+      if (dbError) throw dbError;
 
-      reader.readAsDataURL(file);
+      setPreview(URL.createObjectURL(file));
+      toast({
+        title: "Upload successful",
+        description: "Your image has been uploaded and will be analyzed for style matching.",
+      });
+
+      // Trigger style analysis (this would be implemented in a separate function)
+      await analyzeStyle(publicUrl);
+
     } catch (err) {
-      setIsLoading(false);
+      console.error("Upload error:", err);
       setError(err instanceof Error ? err.message : "Failed to upload image");
       toast({
         title: "Upload failed",
         description: err instanceof Error ? err.message : "Failed to upload image",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const analyzeStyle = async (imageUrl: string) => {
+    try {
+      const response = await fetch('/api/analyze-style', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageUrl })
+      });
+
+      if (!response.ok) throw new Error('Style analysis failed');
+
+      toast({
+        title: "Analysis complete",
+        description: "We'll show you matching items based on this style.",
+      });
+    } catch (error) {
+      console.error('Style analysis error:', error);
+      toast({
+        title: "Analysis failed",
+        description: "We couldn't analyze your style. Please try again.",
         variant: "destructive",
       });
     }
