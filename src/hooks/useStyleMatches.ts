@@ -48,20 +48,8 @@ export const useStyleMatches = () => {
 
       if (matchError) throw matchError;
 
-      const matches = matchesData.matches.map((match: any) => ({
-        id: match.id,
-        product_url: match.product_url,
-        product_image: match.product_image,
-        product_title: match.product_title,
-        product_price: match.product_price,
-        store_name: match.store_name,
-        match_score: match.similarity,
-        match_explanation: match.match_explanation,
-        is_favorite: false
-      }));
-
       // Sort matches based on user preference
-      const sortedMatches = sortMatches(matches, sortBy);
+      const sortedMatches = sortMatches(matchesData.matches, sortBy);
       setItems(sortedMatches);
 
     } catch (error) {
