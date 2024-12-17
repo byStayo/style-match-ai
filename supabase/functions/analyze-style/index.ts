@@ -7,6 +7,12 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+const STYLE_CATEGORIES = [
+  "casual wear", "formal wear", "streetwear", "bohemian", 
+  "minimalist", "vintage", "athletic wear", "business casual",
+  "evening wear", "summer style", "winter fashion"
+];
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -24,30 +30,36 @@ serve(async (req) => {
     if (analysisProvider === 'huggingface') {
       const hf = new HfInference(Deno.env.get('HUGGING_FACE_ACCESS_TOKEN'))
       
-      // Use image classification to get style tags
+      // Get style classification
       const classification = await hf.imageClassification({
         model: "apple/mobilevitv2-1.0-imagenet1k-256",
         data: imageUrl,
-        candidate_labels: [
-          "casual wear", "formal wear", "streetwear", "bohemian", 
-          "minimalist", "vintage", "athletic wear", "business casual",
-          "evening wear", "summer style", "winter fashion"
-        ]
-      })
+        candidate_labels: STYLE_CATEGORIES
+      });
 
       // Get image embeddings for similarity search
       const embedding = await hf.featureExtraction({
         model: "openai/clip-vit-base-patch32",
         data: imageUrl,
-      })
+      });
 
       styleAnalysis = {
         style_tags: classification.map(c => c.label),
         embedding: embedding,
-        confidence_scores: classification.map(c => c.score)
-      }
+        confidence_scores: classification.map(c => c.score),
+        metadata: {
+          provider: 'huggingface',
+          model: 'clip-vit-base-patch32',
+          classification_model: 'mobilevitv2-1.0'
+        }
+      };
+
+      console.log('HuggingFace analysis completed:', {
+        tags: styleAnalysis.style_tags,
+        scores: styleAnalysis.confidence_scores
+      });
+
     } else if (analysisProvider === 'openai') {
-      // Call OpenAI Vision API for analysis
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -62,7 +74,7 @@ serve(async (req) => {
               content: [
                 {
                   type: 'text',
-                  text: 'Analyze this fashion image and provide style tags. Format as JSON with "tags" array.',
+                  text: 'Analyze this fashion image and provide style tags. Format as JSON with "tags" array and "description" string.',
                 },
                 {
                   type: 'image_url',
@@ -73,16 +85,26 @@ serve(async (req) => {
           ],
           max_tokens: 500,
         }),
-      })
+      });
 
-      const data = await response.json()
-      const analysis = JSON.parse(data.choices[0].message.content)
+      const data = await response.json();
+      const analysis = JSON.parse(data.choices[0].message.content);
       
       styleAnalysis = {
         style_tags: analysis.tags,
         embedding: null, // OpenAI doesn't provide embeddings directly
-        confidence_scores: null
-      }
+        confidence_scores: null,
+        metadata: {
+          provider: 'openai',
+          model: 'gpt-4o-mini',
+          description: analysis.description
+        }
+      };
+
+      console.log('OpenAI analysis completed:', {
+        tags: styleAnalysis.style_tags,
+        description: analysis.description
+      });
     } else {
       throw new Error('Invalid analysis provider')
     }
@@ -91,9 +113,9 @@ serve(async (req) => {
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
+    );
 
-    const { data: { user } } = await supabase.auth.getUser(req.headers.get('Authorization')?.split('Bearer ')[1] ?? '')
+    const { data: { user } } = await supabase.auth.getUser(req.headers.get('Authorization')?.split('Bearer ')[1] ?? '');
     
     if (user) {
       const { error: uploadError } = await supabase
@@ -107,25 +129,29 @@ serve(async (req) => {
             style_tags: styleAnalysis.style_tags,
             confidence_scores: styleAnalysis.confidence_scores,
             analysis_provider: analysisProvider,
+            ...styleAnalysis.metadata
           }
-        })
+        });
 
-      if (uploadError) throw uploadError
+      if (uploadError) {
+        console.error('Error storing analysis:', uploadError);
+        throw uploadError;
+      }
     }
 
     return new Response(
       JSON.stringify({ success: true, analysis: styleAnalysis }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+    );
 
   } catch (error) {
-    console.error('Error in analyze-style function:', error)
+    console.error('Error in analyze-style function:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500
       }
-    )
+    );
   }
-})
+});
