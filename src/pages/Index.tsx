@@ -6,6 +6,7 @@ import { AuthButtons } from "@/components/AuthButtons";
 import { ProfileSection } from "@/components/ProfileSection";
 import { StoreSelector } from "@/components/StoreSelector";
 import { SocialMediaConnect } from "@/components/SocialMediaConnect";
+import { StoreProductFetcher } from "@/components/store/StoreProductFetcher";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 
