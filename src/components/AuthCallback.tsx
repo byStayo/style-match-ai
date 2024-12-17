@@ -9,7 +9,7 @@ export const AuthCallback = () => {
 
   useEffect(() => {
     const handleAuthCallback = async () => {
-      const { error } = await supabase.auth.getSession();
+      const { data: { session }, error } = await supabase.auth.getSession();
       
       if (error) {
         toast({
@@ -21,11 +21,13 @@ export const AuthCallback = () => {
         return;
       }
 
-      toast({
-        title: "Welcome!",
-        description: "You have successfully signed in.",
-      });
-      navigate('/');
+      if (session) {
+        toast({
+          title: "Welcome!",
+          description: "You have successfully signed in.",
+        });
+        navigate('/');
+      }
     };
 
     handleAuthCallback();

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Apple } from "lucide-react";
+import { Apple, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import type { Provider } from "@supabase/supabase-js";
@@ -53,6 +53,42 @@ export const AuthButtons = () => {
     }
   };
 
+  const handleGuestSignIn = async () => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: 'guest@example.com',
+        password: 'guestpassword123',
+      });
+
+      if (error) {
+        toast({
+          title: "Guest Access Error",
+          description: "Unable to access guest account. Please try again or use another sign-in method.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (data) {
+        toast({
+          title: "Welcome, Guest!",
+          description: "You've been signed in as a guest user.",
+        });
+        navigate('/');
+      }
+    } catch (error) {
+      console.error("Guest auth error:", error);
+      toast({
+        title: "Authentication Error",
+        description: "Failed to sign in as guest. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-4 w-full max-w-sm mx-auto">
       <Button
@@ -86,6 +122,15 @@ export const AuthButtons = () => {
           ></path>
         </svg>
         Sign in with Google
+      </Button>
+      <Button
+        variant="secondary"
+        onClick={handleGuestSignIn}
+        disabled={isLoading}
+        className="w-full"
+      >
+        <User className="mr-2 h-4 w-4" />
+        Continue as Guest
       </Button>
     </div>
   );
