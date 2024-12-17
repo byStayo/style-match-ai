@@ -56,20 +56,28 @@ export const AuthButtons = () => {
   const handleGuestSignIn = async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.auth.signInAnonymously();
+      // Generate a temporary email for guest access
+      const tempEmail = `guest_${Math.random().toString(36).substring(2)}@temp.stylematch.ai`;
+      
+      const { data, error } = await supabase.auth.signInWithOtp({
+        email: tempEmail,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        }
+      });
 
       if (error) {
         toast({
           title: "Guest Access Error",
-          description: "Unable to access guest account. Please try again or use another sign-in method.",
+          description: "Unable to create guest session. Please try again.",
           variant: "destructive",
         });
         return;
       }
 
-      if (data.session) {
+      if (data) {
         toast({
-          title: "Welcome!",
+          title: "Guest Access Granted",
           description: "You can now try StyleMatch AI. Create an account to save your preferences!",
         });
         navigate("/");
