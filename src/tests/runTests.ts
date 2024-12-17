@@ -17,7 +17,7 @@ async function runTests() {
 
     // Get test results
     const testPaths = await vitest.getTestFilepaths();
-    await Promise.all(testPaths.map(path => vitest.runFiles([path])));
+    await Promise.all(testPaths.map(path => vitest.runFiles([path], 'test')));
     
     // Check for failures
     const state = vitest.state;
@@ -31,9 +31,9 @@ async function runTests() {
     }
 
     console.log('All tests passed!');
-    const coverageReport = state.getCoverageReport?.();
-    if (coverageReport) {
-      console.log('Coverage:', coverageReport);
+    const coverage = state.getCoverage?.();
+    if (coverage) {
+      console.log('Coverage:', coverage);
     }
     
     await vitest.close();
