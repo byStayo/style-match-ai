@@ -1,8 +1,8 @@
-import { run } from 'vitest/node';
+import { test } from 'vitest';
 
 async function runTests() {
   try {
-    const results = await run({
+    const results = await test.run({
       include: ['src/**/*.test.ts'],
       coverage: true,
       threads: true
