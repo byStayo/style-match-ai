@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 export const StoreSelector = () => {
   const { toast } = useToast();
   const [selectedStores, setSelectedStores] = useState<string[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const { data: stores, isLoading } = useQuery({
     queryKey: ["stores"],
@@ -27,7 +28,7 @@ export const StoreSelector = () => {
     },
   });
 
-  const handleStoreSelect = async (storeId: string) => {
+  const handleStoreSelect = async (storeId: string, storeName: string) => {
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       if (!sessionData?.session?.user) {
@@ -38,6 +39,8 @@ export const StoreSelector = () => {
         });
         return;
       }
+
+      setIsProcessing(true);
 
       if (selectedStores.includes(storeId)) {
         setSelectedStores(prev => prev.filter(id => id !== storeId));
@@ -57,22 +60,19 @@ export const StoreSelector = () => {
             store_id: storeId,
             is_favorite: true 
           });
+
+        // Trigger store scraping
+        const { error: scrapeError } = await supabase.functions.invoke('scrape-store', {
+          body: { store: storeName }
+        });
+
+        if (scrapeError) throw scrapeError;
+
+        toast({
+          title: "Store products are being processed",
+          description: "We'll analyze the products and find matches for your style.",
+        });
       }
-
-      // Trigger store product fetch
-      const { error: fetchError } = await supabase.functions.invoke('fetch-store-products', {
-        body: { 
-          storeId,
-          analysisProvider: 'openai' 
-        }
-      });
-
-      if (fetchError) throw fetchError;
-
-      toast({
-        title: "Store preferences updated",
-        description: "We'll start fetching products from your selected stores",
-      });
     } catch (error) {
       console.error('Error updating store preferences:', error);
       toast({
@@ -80,6 +80,8 @@ export const StoreSelector = () => {
         description: "Failed to update store preferences",
         variant: "destructive",
       });
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -124,7 +126,8 @@ export const StoreSelector = () => {
             key={store.id}
             variant={selectedStores.includes(store.id) ? "default" : "outline"}
             className="h-auto py-6 px-4 flex flex-col items-center gap-4"
-            onClick={() => handleStoreSelect(store.id)}
+            onClick={() => handleStoreSelect(store.id, store.name)}
+            disabled={isProcessing}
           >
             {store.logo_url ? (
               <img
