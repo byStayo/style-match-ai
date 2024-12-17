@@ -7,10 +7,12 @@ import { SortOption } from "@/components/product/ProductSort";
 export const useStyleMatches = () => {
   const [items, setItems] = useState<ProductMatch[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
   const { toast } = useToast();
 
   const fetchMatches = async (sortBy: SortOption = 'match') => {
     try {
+      setError(null);
       const { data: session } = await supabase.auth.getSession();
       if (!session?.session?.user) {
         setItems([]);
@@ -88,6 +90,7 @@ export const useStyleMatches = () => {
       setItems(sortedMatches);
     } catch (error) {
       console.error('Error fetching matches:', error);
+      setError(error instanceof Error ? error : new Error('Failed to load matches'));
       toast({
         title: "Error",
         description: "Failed to load style matches. Please try uploading an image first.",
@@ -145,6 +148,7 @@ export const useStyleMatches = () => {
   return {
     items,
     isLoading,
+    error,
     fetchMatches,
     toggleFavorite
   };
