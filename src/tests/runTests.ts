@@ -1,5 +1,4 @@
 import { startVitest } from 'vitest/node';
-import type { TestRunner } from 'vitest';
 
 async function runTests() {
   try {
@@ -17,17 +16,18 @@ async function runTests() {
 
     // Get test results
     const testPaths = await vitest.getTestFilepaths();
-    await Promise.all(testPaths.map(path => vitest.runFiles([path])));
+    await Promise.all(testPaths.map(path => vitest.runFiles([path], 'run')));
     
     // Check for failures
     const state = vitest.state;
-    if (state.getCountOfFailedTests() > 0) {
-      console.error('Test failures:', state.getCountOfFailedTests());
+    const failedTests = state.getFailedTests().length;
+    if (failedTests > 0) {
+      console.error('Test failures:', failedTests);
       process.exit(1);
     }
 
     console.log('All tests passed!');
-    const coverage = state.getCoverageReport();
+    const coverage = state.getCoverage();
     if (coverage) {
       console.log('Coverage:', coverage);
     }
