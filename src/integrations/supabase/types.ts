@@ -109,6 +109,7 @@ export type Database = {
           subscription_status: string | null
           subscription_tier: string | null
           updated_at: string
+          upload_count: number | null
           username: string | null
         }
         Insert: {
@@ -121,6 +122,7 @@ export type Database = {
           subscription_status?: string | null
           subscription_tier?: string | null
           updated_at?: string
+          upload_count?: number | null
           username?: string | null
         }
         Update: {
@@ -133,6 +135,7 @@ export type Database = {
           subscription_status?: string | null
           subscription_tier?: string | null
           updated_at?: string
+          upload_count?: number | null
           username?: string | null
         }
         Relationships: []
@@ -172,6 +175,41 @@ export type Database = {
           {
             foreignKeyName: "social_connections_user_id_fkey"
             columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      social_style_profiles: {
+        Row: {
+          created_at: string | null
+          embedding: string | null
+          id: string
+          metadata: Json | null
+          owner_user_id: string
+          subject_identifier: string
+        }
+        Insert: {
+          created_at?: string | null
+          embedding?: string | null
+          id?: string
+          metadata?: Json | null
+          owner_user_id: string
+          subject_identifier: string
+        }
+        Update: {
+          created_at?: string | null
+          embedding?: string | null
+          id?: string
+          metadata?: Json | null
+          owner_user_id?: string
+          subject_identifier?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_style_profiles_owner_user_id_fkey"
+            columns: ["owner_user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -258,6 +296,7 @@ export type Database = {
           created_at: string
           embedding: string | null
           id: string
+          image_type: string | null
           image_url: string
           metadata: Json | null
           upload_type: string
@@ -267,6 +306,7 @@ export type Database = {
           created_at?: string
           embedding?: string | null
           id?: string
+          image_type?: string | null
           image_url: string
           metadata?: Json | null
           upload_type: string
@@ -276,6 +316,7 @@ export type Database = {
           created_at?: string
           embedding?: string | null
           id?: string
+          image_type?: string | null
           image_url?: string
           metadata?: Json | null
           upload_type?: string
