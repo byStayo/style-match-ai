@@ -17,7 +17,7 @@ export const ImageUpload = () => {
   const [error, setError] = useState<string | null>(null);
   const [analysisProvider, setAnalysisProvider] = useState<'huggingface' | 'openai'>('huggingface');
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
-  const [hasUsedGuestTrial, setHasUsedGuestTrial] = useState(false);
+  const [uploadCount, setUploadCount] = useState(0);
   const { toast } = useToast();
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -37,10 +37,10 @@ export const ImageUpload = () => {
         throw new Error("Image size should be less than 5MB");
       }
 
-      // Create a unique file name for guest uploads
+      // Create a unique file name
       const fileExt = file.name.split('.').pop();
-      const fileName = `guest_${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const filePath = `guest/${fileName}`;
+      const fileName = `upload_${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `uploads/${fileName}`;
 
       setUploadProgress(10);
 
@@ -71,24 +71,17 @@ export const ImageUpload = () => {
       if (analysisError) throw analysisError;
 
       setUploadProgress(100);
+      setUploadCount(prev => prev + 1);
       
-      // Check if user is authenticated
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session?.user) {
-        if (!hasUsedGuestTrial) {
+      // Check if user has reached the trial limit
+      if (uploadCount >= 2) {
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (!sessionData.session?.user) {
           setShowAuthPrompt(true);
-          setHasUsedGuestTrial(true);
           toast({
-            title: "Try StyleMatch AI",
-            description: "Create an account to save your preferences and get unlimited recommendations!",
+            title: "Trial Limit Reached",
+            description: "Create an account to continue using StyleMatch AI and save your preferences!",
           });
-        } else {
-          toast({
-            title: "Account Required",
-            description: "Please create an account to continue using StyleMatch AI.",
-            variant: "destructive",
-          });
-          setPreview(null);
         }
       } else {
         toast({
@@ -109,14 +102,6 @@ export const ImageUpload = () => {
     }
   };
 
-  const handleContinueAsGuest = () => {
-    setShowAuthPrompt(false);
-    toast({
-      title: "One-Time Trial",
-      description: "Create an account to save your preferences and get unlimited recommendations!",
-    });
-  };
-
   return (
     <Card className="w-full max-w-md mx-auto p-6">
       <div className="space-y-6">
@@ -132,7 +117,7 @@ export const ImageUpload = () => {
             onChange={handleFileChange}
             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
             aria-label="Upload image"
-            disabled={isLoading || (hasUsedGuestTrial && !supabase.auth.getUser())}
+            disabled={isLoading}
           />
           {isLoading ? (
             <UploadProgress progress={uploadProgress} />
@@ -155,7 +140,6 @@ export const ImageUpload = () => {
         <GuestAuthPrompt 
           open={showAuthPrompt}
           onOpenChange={setShowAuthPrompt}
-          onContinueAsGuest={handleContinueAsGuest}
         />
 
         {preview && !isLoading && (
