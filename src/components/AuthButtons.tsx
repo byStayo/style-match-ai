@@ -56,14 +56,11 @@ export const AuthButtons = () => {
   const handleGuestSignIn = async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'github',
+      const guestEmail = `guest_${Math.random().toString(36).substring(2)}@example.com`;
+      const { data, error } = await supabase.auth.signInWithOtp({
+        email: guestEmail,
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          }
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
         }
       });
 
@@ -79,9 +76,8 @@ export const AuthButtons = () => {
       if (data) {
         toast({
           title: "Welcome, Guest!",
-          description: "You've been signed in as a guest user.",
+          description: "Check your email for the magic link to sign in.",
         });
-        navigate('/');
       }
     } catch (error) {
       console.error("Guest auth error:", error);
