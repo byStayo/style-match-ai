@@ -1,18 +1,20 @@
-import { Button } from "@/components/ui/button";
-import { Apple, LogIn } from "lucide-react";
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Apple } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import type { Provider } from "@supabase/supabase-js";
+import { useNavigate } from "react-router-dom";
 
 export const AuthButtons = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const handleSignIn = async (provider: Provider) => {
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
@@ -25,13 +27,20 @@ export const AuthButtons = () => {
 
       if (error) {
         console.error("Auth error:", error);
-        throw error;
+        toast({
+          title: "Authentication Error",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
       }
 
-      toast({
-        title: "Redirecting...",
-        description: `Connecting to ${provider}...`,
-      });
+      if (data) {
+        toast({
+          title: "Redirecting...",
+          description: `Connecting to ${provider}...`,
+        });
+      }
     } catch (error) {
       console.error("Auth error:", error);
       toast({
