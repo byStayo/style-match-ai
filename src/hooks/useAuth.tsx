@@ -12,6 +12,20 @@ export interface UserData {
   preferences: Record<string, any>;
   uploads: string[];
   favorites: string[];
+  connectedAccounts?: {
+    instagram?: {
+      connected: boolean;
+      lastSync: string;
+    };
+    facebook?: {
+      connected: boolean;
+      lastSync: string;
+    };
+    tiktok?: {
+      connected: boolean;
+      lastSync: string;
+    };
+  };
 }
 
 export const useAuth = () => {
