@@ -2,8 +2,9 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { Store, ShoppingBag, Link as LinkIcon } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 type StoreType = {
   id: string;
@@ -25,24 +26,107 @@ export const StoreSelector = () => {
   const { toast } = useToast();
   const [customUrl, setCustomUrl] = useState("");
 
-  const handleStoreSelect = (store: StoreType) => {
-    toast({
-      title: `Selected ${store.name}`,
-      description: `Connecting to ${store.name}'s product catalog...`,
-      duration: 3000
-    });
+  const handleStoreSelect = async (store: StoreType) => {
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      if (!session?.session?.user) {
+        toast({
+          title: "Authentication Required",
+          description: "Please sign in to select stores.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      toast({
+        title: `Selected ${store.name}`,
+        description: `Connecting to ${store.name}'s product catalog...`,
+        duration: 3000
+      });
+
+      // Update user preferences in Supabase
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          preferences: {
+            selectedStores: {
+              [store.id]: {
+                name: store.name,
+                connected: true,
+                lastSync: new Date().toISOString()
+              }
+            }
+          }
+        })
+        .eq('id', session.session.user.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Store Connected",
+        description: `Successfully connected to ${store.name}.`,
+      });
+    } catch (error) {
+      console.error('Store selection error:', error);
+      toast({
+        title: "Connection Failed",
+        description: "Failed to connect to store. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
-  const handleCustomUrlSubmit = (e: React.FormEvent) => {
+  const handleCustomUrlSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!customUrl) return;
 
-    toast({
-      title: "Processing Custom Store",
-      description: "Analyzing products from the provided URL...",
-      duration: 3000
-    });
-    setCustomUrl("");
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      if (!session?.session?.user) {
+        toast({
+          title: "Authentication Required",
+          description: "Please sign in to add custom stores.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      toast({
+        title: "Processing Custom Store",
+        description: "Analyzing products from the provided URL...",
+        duration: 3000
+      });
+
+      // Save custom store URL to user preferences
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          preferences: {
+            customStores: [
+              {
+                url: customUrl,
+                added: new Date().toISOString()
+              }
+            ]
+          }
+        })
+        .eq('id', session.session.user.id);
+
+      if (error) throw error;
+
+      setCustomUrl("");
+      toast({
+        title: "Store Added",
+        description: "Custom store has been added successfully.",
+      });
+    } catch (error) {
+      console.error('Custom store error:', error);
+      toast({
+        title: "Failed to Add Store",
+        description: "Could not add custom store. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   return (
