@@ -102,14 +102,14 @@ serve(async (req) => {
             messages: [
               {
                 role: 'system',
-                content: 'You are a fashion style analyzer. Analyze the image and provide style tags from this list: ' + STYLE_CATEGORIES.join(', ')
+                content: `You are a fashion style analyzer. Analyze the image and provide style tags from this list: ${STYLE_CATEGORIES.join(', ')}. Return ONLY a JSON object with two fields: "tags" (array of strings) and "description" (string).`
               },
               {
                 role: 'user',
                 content: [
                   {
                     type: 'text',
-                    text: 'Analyze this fashion image and provide style tags. Format as JSON with "tags" array and "description" string.',
+                    text: 'Analyze this fashion image and provide style tags.',
                   },
                   {
                     type: 'image_url',
@@ -133,20 +133,35 @@ serve(async (req) => {
           throw new Error('Invalid response format from OpenAI');
         }
 
-        const analysis = JSON.parse(data.choices[0].message.content);
+        let parsedAnalysis;
+        try {
+          // Try to parse the content directly
+          const content = data.choices[0].message.content.trim();
+          parsedAnalysis = JSON.parse(content);
+        } catch (parseError) {
+          console.error('Failed to parse OpenAI response:', parseError);
+          // Fallback: Try to extract JSON from markdown if present
+          const content = data.choices[0].message.content;
+          const jsonMatch = content.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+          if (jsonMatch) {
+            parsedAnalysis = JSON.parse(jsonMatch[1]);
+          } else {
+            throw new Error('Failed to parse OpenAI response as JSON');
+          }
+        }
         
-        if (!analysis || !analysis.tags) {
+        if (!parsedAnalysis || !Array.isArray(parsedAnalysis.tags)) {
           throw new Error('Invalid analysis format from OpenAI');
         }
 
         styleAnalysis = {
-          style_tags: analysis.tags,
+          style_tags: parsedAnalysis.tags,
           embedding: null,
           confidence_scores: null,
           metadata: {
             provider: 'openai',
             model: 'gpt-4o-mini',
-            description: analysis.description
+            description: parsedAnalysis.description
           }
         };
 
