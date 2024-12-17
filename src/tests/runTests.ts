@@ -8,20 +8,26 @@ async function runTests() {
         provider: 'v8',
         enabled: true,
         reporter: ['text', 'json', 'html'],
-      },
-      threads: true
+      }
     });
 
-    // Use the correct API to run tests
-    const result = await vitest.start();
+    // Start Vitest and wait for it to be ready
+    await vitest.start();
+    
+    // Get the test runner instance
+    const testRunner = vitest.getProcess();
+    
+    // Wait for all tests to complete
+    await testRunner.waitForComplete();
 
-    if (result.state.getCountOfFailedTests() > 0) {
-      console.error('Test failures:', result.state.getTestResults());
+    const failedTests = testRunner.state.getFailedTests();
+    if (failedTests.length > 0) {
+      console.error('Test failures:', failedTests);
       process.exit(1);
     }
 
     console.log('All tests passed!');
-    const coverage = result.state.getCoverage();
+    const coverage = testRunner.state.getCoverage();
     if (coverage) {
       console.log('Coverage:', coverage);
     }
