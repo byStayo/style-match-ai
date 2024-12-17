@@ -5,12 +5,15 @@ import { UploadProgress } from "./upload/UploadProgress";
 import { UploadPreview } from "./upload/UploadPreview";
 import { UploadDropzone } from "./upload/UploadDropzone";
 import { ErrorDialog } from "./upload/ErrorDialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 
 export const ImageUpload = () => {
   const [preview, setPreview] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [analysisProvider, setAnalysisProvider] = useState<'huggingface' | 'openai'>('huggingface');
   const { toast } = useToast();
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -82,7 +85,7 @@ export const ImageUpload = () => {
         description: "Your image has been uploaded and will be analyzed for style matching.",
       });
 
-      // Trigger style analysis
+      // Trigger style analysis with selected provider
       await analyzeStyle(publicUrl);
 
     } catch (err) {
@@ -104,7 +107,10 @@ export const ImageUpload = () => {
       if (!sessionData.session) throw new Error('Authentication required');
 
       const response = await supabase.functions.invoke('analyze-style', {
-        body: { imageUrl },
+        body: { 
+          imageUrl,
+          analysisProvider 
+        },
         headers: {
           Authorization: `Bearer ${sessionData.session.access_token}`,
         },
@@ -128,6 +134,22 @@ export const ImageUpload = () => {
 
   return (
     <div className="w-full max-w-md mx-auto p-6 animate-fade-in">
+      <div className="mb-4">
+        <Label htmlFor="analysis-provider">Analysis Provider</Label>
+        <Select
+          value={analysisProvider}
+          onValueChange={(value: 'huggingface' | 'openai') => setAnalysisProvider(value)}
+        >
+          <SelectTrigger id="analysis-provider" className="w-full">
+            <SelectValue placeholder="Select analysis provider" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="huggingface">Hugging Face (Default)</SelectItem>
+            <SelectItem value="openai">OpenAI Vision</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
       <div className="relative border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-primary transition-colors">
         <input
           type="file"
