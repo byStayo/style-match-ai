@@ -56,7 +56,13 @@ export const AuthButtons = () => {
   const handleGuestSignIn = async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.auth.signInAnonymously();
+      const guestEmail = `guest_${Math.random().toString(36).substring(2)}@example.com`;
+      const { data, error } = await supabase.auth.signInWithOtp({
+        email: guestEmail,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        }
+      });
 
       if (error) {
         toast({
@@ -67,12 +73,11 @@ export const AuthButtons = () => {
         return;
       }
 
-      if (data.session) {
+      if (data) {
         toast({
           title: "Welcome!",
-          description: "You can now try StyleMatch AI. Create an account to save your preferences!",
+          description: "Check your email for a magic link to try StyleMatch AI.",
         });
-        navigate("/");
       }
     } catch (error) {
       console.error("Guest auth error:", error);
