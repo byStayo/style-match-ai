@@ -23,40 +23,20 @@ export const AuthButtons = () => {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Auth error:", error);
+        throw error;
+      }
 
       toast({
-        title: "Welcome!",
-        description: `Successfully initiated sign in with ${provider}`,
+        title: "Redirecting...",
+        description: `Connecting to ${provider}...`,
       });
     } catch (error) {
       console.error("Auth error:", error);
       toast({
         title: "Authentication Error",
         description: "Failed to sign in. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleGuestAccess = async () => {
-    setIsLoading(true);
-    try {
-      const { error } = await supabase.auth.signInAnonymously();
-
-      if (error) throw error;
-
-      toast({
-        title: "Welcome!",
-        description: "You're continuing as a guest. Some features may be limited.",
-      });
-    } catch (error) {
-      console.error("Guest auth error:", error);
-      toast({
-        title: "Error",
-        description: "Failed to continue as guest. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -97,23 +77,6 @@ export const AuthButtons = () => {
           ></path>
         </svg>
         Sign in with Google
-      </Button>
-      <div className="relative my-4">
-        <div className="absolute inset-0 flex items-center">
-          <span className="w-full border-t" />
-        </div>
-        <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-background px-2 text-muted-foreground">Or</span>
-        </div>
-      </div>
-      <Button
-        variant="secondary"
-        onClick={handleGuestAccess}
-        disabled={isLoading}
-        className="w-full"
-      >
-        <LogIn className="mr-2 h-4 w-4" />
-        Continue as Guest
       </Button>
     </div>
   );
