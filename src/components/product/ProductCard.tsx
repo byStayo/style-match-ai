@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Heart, ExternalLink } from "lucide-react";
 import { ProductMatch } from "@/types/product";
+import { Badge } from "@/components/ui/badge";
 
 interface ProductCardProps {
   item: ProductMatch;
@@ -10,7 +11,7 @@ interface ProductCardProps {
 
 export const ProductCard = ({ item, onFavorite }: ProductCardProps) => {
   return (
-    <Card className="group overflow-hidden animate-fade-in">
+    <Card className="group overflow-hidden">
       <CardHeader className="p-0">
         <div className="relative aspect-square">
           <img

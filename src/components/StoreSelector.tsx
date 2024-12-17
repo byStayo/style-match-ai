@@ -4,10 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Store } from "lucide-react";
-import { Database } from "@/integrations/supabase/types";
-
-type Store = Database['public']['Tables']['stores']['Row'];
-type UserStorePreference = Database['public']['Tables']['user_store_preferences']['Row'];
+import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export const StoreSelector = () => {
   const { toast } = useToast();
@@ -21,48 +19,62 @@ export const StoreSelector = () => {
         .select('*')
         .eq('is_active', true);
 
-      if (error) throw error;
-      return data as Store[];
+      if (error) {
+        console.error('Error fetching stores:', error);
+        throw error;
+      }
+      return data;
     },
   });
 
   const handleStoreSelect = async (storeId: string) => {
-    const { data: sessionData } = await supabase.auth.getSession();
-    const session = sessionData?.session;
-    
-    if (!session?.user) {
-      toast({
-        title: "Sign in required",
-        description: "Please sign in to save your store preferences",
-        variant: "destructive",
-      });
-      return;
-    }
-
     try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData?.session?.user) {
+        toast({
+          title: "Sign in required",
+          description: "Please sign in to save your store preferences",
+          variant: "destructive",
+        });
+        return;
+      }
+
       if (selectedStores.includes(storeId)) {
-        setSelectedStores(selectedStores.filter((id) => id !== storeId));
+        setSelectedStores(prev => prev.filter(id => id !== storeId));
         await supabase
           .from('user_store_preferences')
           .delete()
-          .match({ user_id: session.user.id, store_id: storeId });
+          .match({ 
+            user_id: sessionData.session.user.id, 
+            store_id: storeId 
+          });
       } else {
-        setSelectedStores([...selectedStores, storeId]);
+        setSelectedStores(prev => [...prev, storeId]);
         await supabase
           .from('user_store_preferences')
           .upsert({ 
-            user_id: session.user.id, 
+            user_id: sessionData.session.user.id, 
             store_id: storeId,
             is_favorite: true 
           });
       }
 
+      // Trigger store product fetch
+      const { error: fetchError } = await supabase.functions.invoke('fetch-store-products', {
+        body: { 
+          storeId,
+          analysisProvider: 'openai' 
+        }
+      });
+
+      if (fetchError) throw fetchError;
+
       toast({
-        title: "Preferences updated",
-        description: "Your store preferences have been saved",
+        title: "Store preferences updated",
+        description: "We'll start fetching products from your selected stores",
       });
     } catch (error) {
-      console.error("Error updating store preferences:", error);
+      console.error('Error updating store preferences:', error);
       toast({
         title: "Error",
         description: "Failed to update store preferences",
@@ -71,20 +83,20 @@ export const StoreSelector = () => {
     }
   };
 
+  // Load user's store preferences
   useEffect(() => {
     const loadUserPreferences = async () => {
       const { data: sessionData } = await supabase.auth.getSession();
-      const session = sessionData?.session;
-      if (!session?.user) return;
+      if (!sessionData?.session?.user) return;
 
-      const { data } = await supabase
+      const { data: preferences } = await supabase
         .from('user_store_preferences')
         .select('store_id')
-        .eq('user_id', session.user.id)
+        .eq('user_id', sessionData.session.user.id)
         .eq('is_favorite', true);
 
-      if (data) {
-        setSelectedStores(data.map((pref) => pref.store_id));
+      if (preferences) {
+        setSelectedStores(preferences.map(pref => pref.store_id));
       }
     };
 
@@ -92,30 +104,41 @@ export const StoreSelector = () => {
   }, []);
 
   if (isLoading) {
-    return <div>Loading stores...</div>;
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {[1, 2, 3].map((i) => (
+          <Card key={i} className="p-6">
+            <Skeleton className="h-8 w-8 rounded-full mb-4" />
+            <Skeleton className="h-4 w-24" />
+          </Card>
+        ))}
+      </div>
+    );
   }
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-      {stores?.map((store) => (
-        <Button
-          key={store.id}
-          variant={selectedStores.includes(store.id) ? "default" : "outline"}
-          className="w-full h-auto py-4 px-6 flex flex-col items-center gap-2"
-          onClick={() => handleStoreSelect(store.id)}
-        >
-          {store.logo_url ? (
-            <img
-              src={store.logo_url}
-              alt={store.name}
-              className="w-8 h-8 object-contain"
-            />
-          ) : (
-            <Store className="w-8 h-8" />
-          )}
-          <span>{store.name}</span>
-        </Button>
-      ))}
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {stores?.map((store) => (
+          <Button
+            key={store.id}
+            variant={selectedStores.includes(store.id) ? "default" : "outline"}
+            className="h-auto py-6 px-4 flex flex-col items-center gap-4"
+            onClick={() => handleStoreSelect(store.id)}
+          >
+            {store.logo_url ? (
+              <img
+                src={store.logo_url}
+                alt={store.name}
+                className="w-12 h-12 object-contain"
+              />
+            ) : (
+              <Store className="w-12 h-12" />
+            )}
+            <span className="text-lg font-medium">{store.name}</span>
+          </Button>
+        ))}
+      </div>
     </div>
   );
 };

@@ -17,7 +17,7 @@ export const ProductSort = ({ sortBy, onSort }: ProductSortProps) => {
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="match">Best Match</SelectItem>
-          <SelectItem value="price">Price</SelectItem>
+          <SelectItem value="price">Price: Low to High</SelectItem>
           <SelectItem value="date">Most Recent</SelectItem>
         </SelectContent>
       </Select>

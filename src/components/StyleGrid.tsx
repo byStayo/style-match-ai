@@ -1,15 +1,16 @@
 import { useState, useEffect } from "react";
 import { ProductCard } from "./product/ProductCard";
-import { ProductSort, SortOption } from "./product/ProductSort";
+import { ProductSort } from "./product/ProductSort";
 import { ProductGridSkeleton } from "./product/ProductGridSkeleton";
 import { EmptyProductGrid } from "./product/EmptyProductGrid";
 import { useStyleMatches } from "@/hooks/useStyleMatches";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import type { SortOption } from "@/components/product/ProductSort";
 
 export const StyleGrid = () => {
   const [sortBy, setSortBy] = useState<SortOption>("match");
-  const { items, isLoading, fetchMatches, toggleFavorite } = useStyleMatches();
+  const { items, isLoading, error, fetchMatches, toggleFavorite } = useStyleMatches();
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -35,6 +36,15 @@ export const StyleGrid = () => {
 
     loadMatches();
   }, [user, sortBy]);
+
+  if (error) {
+    return (
+      <div className="text-center p-8">
+        <h3 className="text-xl font-semibold text-red-600">Error Loading Matches</h3>
+        <p className="text-muted-foreground mt-2">{error.message}</p>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return <ProductGridSkeleton />;
