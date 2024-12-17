@@ -39,17 +39,24 @@ serve(async (req) => {
 
     // Initialize HuggingFace
     const hf = new HfInference(Deno.env.get('HUGGING_FACE_ACCESS_TOKEN'))
-    console.log('Analyzing image:', imageUrl)
+    console.log('Processing image:', imageUrl)
 
-    // Get image classification
+    // Get image embeddings using CLIP
+    const imageData = await fetch(imageUrl).then(r => r.blob())
+    const embedding = await hf.featureExtraction({
+      model: 'openai/clip-vit-base-patch32',
+      data: imageData,
+    })
+
+    // Get image classification for style tags
     const classification = await hf.imageClassification({
       model: 'apple/mobilevitv2-1.0-imagenet1k-256',
-      data: await fetch(imageUrl).then(r => r.blob()),
+      data: imageData,
     })
 
     console.log('Classification results:', classification)
 
-    // Extract style tags from classification
+    // Extract style tags and confidence scores
     const styleTags = classification
       .filter(c => c.score > 0.1)
       .map(c => c.label)
@@ -58,6 +65,7 @@ serve(async (req) => {
     const { error: updateError } = await supabaseAdmin
       .from('style_uploads')
       .update({
+        embedding: embedding,
         metadata: {
           style_tags: styleTags,
           analysis_completed: true,
@@ -71,12 +79,13 @@ serve(async (req) => {
       throw updateError
     }
 
-    // Find matching products
+    // Find matching products using vector similarity
     const { data: products, error: productsError } = await supabaseAdmin
-      .from('products')
-      .select('*')
-      .containsAny('style_tags', styleTags)
-      .limit(10)
+      .rpc('match_products', {
+        query_embedding: embedding,
+        similarity_threshold: 0.7,
+        match_count: 10
+      })
 
     if (productsError) {
       throw productsError
@@ -91,7 +100,7 @@ serve(async (req) => {
         product_title: product.product_title,
         product_price: product.product_price,
         store_name: product.store_name,
-        match_score: 0.8, // Simplified score for now
+        match_score: product.similarity,
         match_explanation: `Matched based on style tags: ${styleTags.join(', ')}`,
       }))
 
