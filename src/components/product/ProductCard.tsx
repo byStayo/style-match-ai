@@ -1,8 +1,14 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Heart, ExternalLink } from "lucide-react";
+import { Heart, ExternalLink, Info } from "lucide-react";
 import { ProductMatch } from "@/types/product";
 import { Badge } from "@/components/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface ProductCardProps {
   item: ProductMatch;
@@ -19,9 +25,19 @@ export const ProductCard = ({ item, onFavorite }: ProductCardProps) => {
             alt={item.product_title}
             className="w-full h-full object-cover transition-transform group-hover:scale-105"
           />
-          <div className="absolute top-2 right-2 bg-black/75 text-white px-2 py-1 rounded-full text-sm">
-            {Math.round(item.match_score * 100)}% Match
-          </div>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="absolute top-2 right-2 bg-black/75 text-white px-2 py-1 rounded-full text-sm flex items-center gap-1 cursor-help">
+                  <span>{Math.round(item.match_score * 100)}% Match</span>
+                  <Info className="h-4 w-4" />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <p className="text-sm">{item.match_explanation}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
           <Button
             variant="ghost"
             size="icon"
@@ -37,21 +53,29 @@ export const ProductCard = ({ item, onFavorite }: ProductCardProps) => {
         </div>
       </CardHeader>
       <CardContent className="p-4">
-        <div className="space-y-2">
+        <div className="space-y-3">
           <h3 className="text-lg font-semibold line-clamp-1">{item.product_title}</h3>
-          <p className="text-sm text-muted-foreground line-clamp-2">
-            {item.match_explanation || `This item matches your style preferences`}
-          </p>
-          {item.style_tags && item.style_tags.length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              {item.style_tags.slice(0, 3).map((tag) => (
-                <Badge key={tag} variant="secondary" className="text-xs">
-                  {tag}
-                </Badge>
-              ))}
-            </div>
-          )}
-          <div className="flex justify-between items-center">
+          
+          {/* Style Analysis Section */}
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">
+              {item.match_explanation || "This item matches your style preferences"}
+            </p>
+            {item.style_tags && item.style_tags.length > 0 && (
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground font-medium">Style Elements:</p>
+                <div className="flex flex-wrap gap-1">
+                  {item.style_tags.map((tag) => (
+                    <Badge key={tag} variant="secondary" className="text-xs">
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-between items-center pt-2 border-t">
             <span className="font-semibold">${item.product_price.toFixed(2)}</span>
             <Button 
               variant="outline" 
