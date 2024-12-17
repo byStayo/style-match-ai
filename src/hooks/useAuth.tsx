@@ -11,7 +11,12 @@ export interface UserData {
   photoURL?: string | null;
   provider?: string;
   isAnonymous?: boolean;
-  preferences: Record<string, any>;
+  preferences: {
+    colors?: string[];
+    styles?: string[];
+    sizes?: string[];
+    [key: string]: any;
+  };
   uploads: string[];
   favorites: string[];
   connectedAccounts?: {
@@ -75,7 +80,7 @@ export const useAuth = () => {
           email: user?.email,
           displayName: data.full_name,
           photoURL: data.avatar_url,
-          preferences: data.preferences || {},
+          preferences: data.preferences as UserData['preferences'] || {},
           uploads: [],  // We'll fetch these separately if needed
           favorites: [], // We'll fetch these separately if needed
           connectedAccounts: {} // We'll fetch these separately if needed
