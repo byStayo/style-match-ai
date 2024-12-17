@@ -6,16 +6,12 @@ import { EmptyProductGrid } from "./product/EmptyProductGrid";
 import { useStyleMatches } from "@/hooks/useStyleMatches";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { Button } from "./ui/button";
-import { Upload } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 
 export const StyleGrid = () => {
   const [sortBy, setSortBy] = useState<SortOption>("match");
   const { items, isLoading, fetchMatches, toggleFavorite } = useStyleMatches();
   const { user } = useAuth();
   const { toast } = useToast();
-  const navigate = useNavigate();
 
   useEffect(() => {
     const loadMatches = async () => {
@@ -40,10 +36,6 @@ export const StyleGrid = () => {
     loadMatches();
   }, [user, sortBy]);
 
-  const handleUploadClick = () => {
-    navigate("/");
-  };
-
   if (isLoading) {
     return <ProductGridSkeleton />;
   }
@@ -52,11 +44,6 @@ export const StyleGrid = () => {
     return (
       <EmptyProductGrid 
         message="Please sign in to view your style matches"
-        action={
-          <Button variant="outline" onClick={handleUploadClick}>
-            Sign in
-          </Button>
-        }
       />
     );
   }
@@ -65,12 +52,6 @@ export const StyleGrid = () => {
     return (
       <EmptyProductGrid 
         message="Upload some images to get personalized style matches"
-        action={
-          <Button onClick={handleUploadClick} className="gap-2">
-            <Upload className="w-4 h-4" />
-            Upload Images
-          </Button>
-        }
       />
     );
   }
