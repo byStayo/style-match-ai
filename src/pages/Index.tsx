@@ -2,6 +2,7 @@ import { ImageUpload } from "@/components/ImageUpload";
 import { StyleGrid } from "@/components/StyleGrid";
 import { AuthButtons } from "@/components/AuthButtons";
 import { SocialMediaConnect } from "@/components/SocialMediaConnect";
+import { StoreSelector } from "@/components/StoreSelector";
 import { useAuth } from "@/hooks/useAuth";
 
 const Index = () => {
@@ -58,6 +59,18 @@ const Index = () => {
               </p>
             </div>
             <ImageUpload />
+          </section>
+
+          <section>
+            <div className="max-w-2xl mx-auto text-center">
+              <h2 className="text-2xl font-semibold text-foreground mb-4">
+                Select Stores
+              </h2>
+              <p className="text-muted-foreground mb-8">
+                Choose from our integrated stores or add your own favorite stores.
+              </p>
+            </div>
+            <StoreSelector />
           </section>
           
           <section>
