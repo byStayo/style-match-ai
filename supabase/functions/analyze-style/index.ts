@@ -30,38 +30,57 @@ serve(async (req) => {
     
     if (analysisProvider === 'huggingface') {
       console.log('Using HuggingFace for analysis');
-      const hf = new HfInference(Deno.env.get('HUGGING_FACE_ACCESS_TOKEN'));
+      const hfToken = Deno.env.get('HUGGING_FACE_ACCESS_TOKEN');
       
-      // Get style classification
-      const classification = await hf.imageClassification({
-        model: "apple/mobilevitv2-1.0-imagenet1k-256",
-        data: imageUrl,
-        parameters: {
-          candidate_labels: STYLE_CATEGORIES
+      if (!hfToken) {
+        throw new Error('HuggingFace API token not configured');
+      }
+
+      const hf = new HfInference(hfToken);
+      
+      try {
+        // Get style classification
+        const classification = await hf.imageClassification({
+          model: "apple/mobilevitv2-1.0-imagenet1k-256",
+          data: imageUrl,
+          parameters: {
+            candidate_labels: STYLE_CATEGORIES
+          }
+        });
+
+        console.log('Classification result:', classification);
+
+        if (!classification || !classification.labels || !classification.scores) {
+          throw new Error('Invalid classification response from HuggingFace');
         }
-      });
 
-      // Get image embeddings for similarity search
-      const embedding = await hf.featureExtraction({
-        model: "openai/clip-vit-base-patch32",
-        data: imageUrl,
-      });
+        // Get image embeddings for similarity search
+        const embeddingResponse = await hf.featureExtraction({
+          model: "openai/clip-vit-base-patch32",
+          data: imageUrl,
+        });
 
-      styleAnalysis = {
-        style_tags: classification.labels,
-        embedding: embedding,
-        confidence_scores: classification.scores,
-        metadata: {
-          provider: 'huggingface',
-          model: 'clip-vit-base-patch32',
-          classification_model: 'mobilevitv2-1.0'
+        console.log('Embedding response received');
+
+        if (!embeddingResponse) {
+          throw new Error('Invalid embedding response from HuggingFace');
         }
-      };
 
-      console.log('HuggingFace analysis completed:', {
-        tags: styleAnalysis.style_tags,
-        scores: styleAnalysis.confidence_scores
-      });
+        styleAnalysis = {
+          style_tags: classification.labels,
+          embedding: embeddingResponse,
+          confidence_scores: classification.scores,
+          metadata: {
+            provider: 'huggingface',
+            model: 'clip-vit-base-patch32',
+            classification_model: 'mobilevitv2-1.0'
+          }
+        };
+
+      } catch (error) {
+        console.error('HuggingFace API error:', error);
+        throw new Error(`HuggingFace API error: ${error.message}`);
+      }
 
     } else if (analysisProvider === 'openai') {
       console.log('Using OpenAI for analysis');
@@ -71,55 +90,70 @@ serve(async (req) => {
         throw new Error('OpenAI API key not configured');
       }
 
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${openAIApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          messages: [
-            {
-              role: 'system',
-              content: 'You are a fashion style analyzer. Analyze the image and provide style tags from this list: ' + STYLE_CATEGORIES.join(', ')
-            },
-            {
-              role: 'user',
-              content: [
-                {
-                  type: 'text',
-                  text: 'Analyze this fashion image and provide style tags. Format as JSON with "tags" array and "description" string.',
-                },
-                {
-                  type: 'image_url',
-                  image_url: { url: imageUrl },
-                },
-              ],
-            },
-          ],
-          max_tokens: 500,
-        }),
-      });
+      try {
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${openAIApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'gpt-4o-mini',
+            messages: [
+              {
+                role: 'system',
+                content: 'You are a fashion style analyzer. Analyze the image and provide style tags from this list: ' + STYLE_CATEGORIES.join(', ')
+              },
+              {
+                role: 'user',
+                content: [
+                  {
+                    type: 'text',
+                    text: 'Analyze this fashion image and provide style tags. Format as JSON with "tags" array and "description" string.',
+                  },
+                  {
+                    type: 'image_url',
+                    image_url: { url: imageUrl },
+                  },
+                ],
+              },
+            ],
+            max_tokens: 500,
+          }),
+        });
 
-      const data = await response.json();
-      const analysis = JSON.parse(data.choices[0].message.content);
-      
-      styleAnalysis = {
-        style_tags: analysis.tags,
-        embedding: null, // OpenAI doesn't provide embeddings directly
-        confidence_scores: null,
-        metadata: {
-          provider: 'openai',
-          model: 'gpt-4o-mini',
-          description: analysis.description
+        if (!response.ok) {
+          throw new Error(`OpenAI API error: ${response.statusText}`);
         }
-      };
 
-      console.log('OpenAI analysis completed:', {
-        tags: styleAnalysis.style_tags,
-        description: analysis.description
-      });
+        const data = await response.json();
+        console.log('OpenAI response:', data);
+
+        if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+          throw new Error('Invalid response format from OpenAI');
+        }
+
+        const analysis = JSON.parse(data.choices[0].message.content);
+        
+        if (!analysis || !analysis.tags) {
+          throw new Error('Invalid analysis format from OpenAI');
+        }
+
+        styleAnalysis = {
+          style_tags: analysis.tags,
+          embedding: null,
+          confidence_scores: null,
+          metadata: {
+            provider: 'openai',
+            model: 'gpt-4o-mini',
+            description: analysis.description
+          }
+        };
+
+      } catch (error) {
+        console.error('OpenAI API error:', error);
+        throw new Error(`OpenAI API error: ${error.message}`);
+      }
     } else {
       throw new Error('Invalid analysis provider');
     }
