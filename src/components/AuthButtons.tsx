@@ -2,44 +2,27 @@ import { Button } from "@/components/ui/button";
 import { Apple, LogIn } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { auth, db } from "@/lib/firebase";
-import { 
-  signInWithPopup, 
-  GoogleAuthProvider, 
-  OAuthProvider,
-  signInAnonymously 
-} from "firebase/auth";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { supabase } from "@/integrations/supabase/client";
 
 export const AuthButtons = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  const handleSignIn = async (provider: "Apple" | "Google") => {
+  const handleSignIn = async (provider: "apple" | "google") => {
     setIsLoading(true);
     try {
-      const authProvider = provider === "Apple" 
-        ? new OAuthProvider('apple.com')
-        : new GoogleAuthProvider();
-      
-      const result = await signInWithPopup(auth, authProvider);
-      const user = result.user;
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`
+        }
+      });
 
-      // Store user data in Firestore
-      await setDoc(doc(db, "users", user.uid), {
-        email: user.email,
-        displayName: user.displayName,
-        photoURL: user.photoURL,
-        provider: provider.toLowerCase(),
-        lastLogin: serverTimestamp(),
-        preferences: {},
-        uploads: [],
-        favorites: []
-      }, { merge: true });
+      if (error) throw error;
 
       toast({
         title: "Welcome!",
-        description: `Successfully signed in with ${provider}`,
+        description: `Successfully initiated sign in with ${provider}`,
       });
     } catch (error) {
       console.error("Auth error:", error);
@@ -56,16 +39,14 @@ export const AuthButtons = () => {
   const handleGuestAccess = async () => {
     setIsLoading(true);
     try {
-      const result = await signInAnonymously(auth);
-      
-      // Store anonymous user data
-      await setDoc(doc(db, "users", result.user.uid), {
-        isAnonymous: true,
-        lastLogin: serverTimestamp(),
-        preferences: {},
-        uploads: [],
-        favorites: []
-      }, { merge: true });
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`
+        }
+      });
+
+      if (error) throw error;
 
       toast({
         title: "Welcome!",
@@ -87,7 +68,7 @@ export const AuthButtons = () => {
     <div className="flex flex-col gap-4 w-full max-w-sm mx-auto">
       <Button
         variant="outline"
-        onClick={() => handleSignIn("Apple")}
+        onClick={() => handleSignIn("apple")}
         disabled={isLoading}
         className="w-full"
       >
@@ -96,7 +77,7 @@ export const AuthButtons = () => {
       </Button>
       <Button
         variant="outline"
-        onClick={() => handleSignIn("Google")}
+        onClick={() => handleSignIn("google")}
         disabled={isLoading}
         className="w-full"
       >

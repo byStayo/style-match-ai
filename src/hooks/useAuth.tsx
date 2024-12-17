@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
-import { auth, db } from "@/lib/firebase";
-import { User } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { supabase } from "@/integrations/supabase/client";
+import { User } from "@supabase/supabase-js";
 
 export interface UserData {
   email?: string | null;
@@ -34,29 +33,55 @@ export const useAuth = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(async (user) => {
-      setUser(user);
-      
-      if (user) {
-        // Fetch additional user data from Firestore
-        try {
-          const docRef = doc(db, "users", user.uid);
-          const docSnap = await getDoc(docRef);
-          if (docSnap.exists()) {
-            setUserData(docSnap.data() as UserData);
-          }
-        } catch (error) {
-          console.error("Error fetching user data:", error);
-        }
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        fetchUserData(session.user.id);
+      }
+    });
+
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        fetchUserData(session.user.id);
       } else {
         setUserData(null);
       }
-      
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => subscription.unsubscribe();
   }, []);
+
+  const fetchUserData = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        setUserData({
+          email: user?.email,
+          displayName: data.full_name,
+          photoURL: data.avatar_url,
+          preferences: data.preferences,
+          uploads: [],  // We'll fetch these separately if needed
+          favorites: [], // We'll fetch these separately if needed
+          connectedAccounts: {} // We'll fetch these separately if needed
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+    }
+  };
 
   return { user, userData, loading };
 };
