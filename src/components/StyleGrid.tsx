@@ -7,7 +7,11 @@ import { EmptyProductGrid } from "./product/EmptyProductGrid";
 import { useStyleMatches } from "@/hooks/useStyleMatches";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { SortOption } from "@/components/product/ProductSort";
+
+const ITEMS_PER_PAGE = 9; // Show 9 items per page (3x3 grid)
 
 export const StyleGrid = () => {
   const [sortBy, setSortBy] = useState<SortOption>("match");
@@ -15,6 +19,7 @@ export const StyleGrid = () => {
     stores: [],
     styleCategories: [],
   });
+  const [currentPage, setCurrentPage] = useState(1);
   
   const { items, isLoading, error, fetchMatches, toggleFavorite } = useStyleMatches();
   const { user } = useAuth();
@@ -39,6 +44,16 @@ export const StyleGrid = () => {
     return true;
   });
 
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredItems.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const paginatedItems = filteredItems.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   useEffect(() => {
     const loadMatches = async () => {
       if (!user) {
@@ -61,6 +76,11 @@ export const StyleGrid = () => {
 
     loadMatches();
   }, [user, sortBy]);
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters]);
 
   if (error) {
     return (
@@ -101,8 +121,9 @@ export const StyleGrid = () => {
         />
         <ProductSort sortBy={sortBy} onSort={setSortBy} />
       </div>
+      
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredItems.map((item) => (
+        {paginatedItems.map((item) => (
           <ProductCard 
             key={item.id} 
             item={item} 
@@ -110,6 +131,41 @@ export const StyleGrid = () => {
           />
         ))}
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-2 mt-8">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          
+          <div className="flex items-center gap-2">
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+              <Button
+                key={page}
+                variant={currentPage === page ? "default" : "outline"}
+                size="sm"
+                onClick={() => handlePageChange(page)}
+              >
+                {page}
+              </Button>
+            ))}
+          </div>
+
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
     </div>
   );
 };
