@@ -13,13 +13,16 @@ interface AnalysisResult {
 }
 
 async function analyzeWithHuggingFace(imageData: Blob): Promise<AnalysisResult> {
+  console.log('Starting HuggingFace analysis...');
   const hf = new HfInference(Deno.env.get('HUGGING_FACE_ACCESS_TOKEN'))
   
+  console.log('Extracting features...');
   const embedding = await hf.featureExtraction({
     model: 'openai/clip-vit-base-patch32',
     data: imageData,
   })
 
+  console.log('Classifying image...');
   const classification = await hf.imageClassification({
     model: 'apple/mobilevitv2-1.0-imagenet1k-256',
     data: imageData,
@@ -29,10 +32,12 @@ async function analyzeWithHuggingFace(imageData: Blob): Promise<AnalysisResult> 
     .filter(c => c.score > 0.1)
     .map(c => c.label)
 
+  console.log('Analysis complete. Tags:', styleTags);
   return { embedding, styleTags }
 }
 
 async function analyzeWithOpenAI(imageData: Blob): Promise<AnalysisResult> {
+  console.log('Starting OpenAI analysis...');
   const openaiKey = Deno.env.get('OPENAI_API_KEY')
   if (!openaiKey) throw new Error('OpenAI API key not configured')
 
@@ -40,6 +45,7 @@ async function analyzeWithOpenAI(imageData: Blob): Promise<AnalysisResult> {
   const arrayBuffer = await imageData.arrayBuffer()
   const base64Image = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)))
 
+  console.log('Sending request to OpenAI...');
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -47,7 +53,7 @@ async function analyzeWithOpenAI(imageData: Blob): Promise<AnalysisResult> {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'gpt-4-vision-preview',
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'user',
@@ -76,13 +82,13 @@ async function analyzeWithOpenAI(imageData: Blob): Promise<AnalysisResult> {
     throw new Error('Failed to analyze image with OpenAI')
   }
 
-  // Parse the response content as JSON
+  console.log('Parsing OpenAI response...');
   const analysis = JSON.parse(data.choices[0].message.content)
   
   // Generate a simple embedding based on the tags (temporary solution)
-  // In a production environment, you might want to use a proper embedding model
-  const embedding = new Array(512).fill(0) // Matching CLIP's dimension
+  const embedding = new Array(512).fill(0)
   
+  console.log('Analysis complete. Tags:', analysis.tags);
   return {
     embedding,
     styleTags: analysis.tags,
@@ -96,6 +102,7 @@ serve(async (req) => {
   }
 
   try {
+    console.log('Starting style analysis...');
     const { imageUrl, analysisProvider = 'huggingface' } = await req.json()
     
     if (!imageUrl) {
@@ -103,6 +110,7 @@ serve(async (req) => {
     }
 
     // Initialize Supabase client
+    console.log('Initializing Supabase client...');
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -114,6 +122,7 @@ serve(async (req) => {
       throw new Error('No authorization header')
     }
 
+    console.log('Authenticating user...');
     const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(authHeader)
     if (userError || !user) {
       throw new Error('Unauthorized')
@@ -124,11 +133,13 @@ serve(async (req) => {
     const imageData = await fetch(imageUrl).then(r => r.blob())
     
     // Analyze image based on provider
+    console.log(`Using provider: ${analysisProvider}`);
     const analysis = analysisProvider === 'openai' 
       ? await analyzeWithOpenAI(imageData)
       : await analyzeWithHuggingFace(imageData)
 
     // Update the style_uploads table with analysis results
+    console.log('Updating style_uploads table...');
     const { error: updateError } = await supabaseAdmin
       .from('style_uploads')
       .update({
@@ -148,6 +159,7 @@ serve(async (req) => {
     }
 
     // Find matching products using vector similarity
+    console.log('Finding matching products...');
     const { data: products, error: productsError } = await supabaseAdmin
       .rpc('match_products', {
         query_embedding: analysis.embedding,
@@ -161,6 +173,7 @@ serve(async (req) => {
 
     // Create product matches
     if (products && products.length > 0) {
+      console.log(`Creating ${products.length} product matches...`);
       const matches = products.map(product => ({
         user_id: user.id,
         product_url: product.product_url,
@@ -181,6 +194,7 @@ serve(async (req) => {
       }
     }
 
+    console.log('Style analysis complete!');
     return new Response(
       JSON.stringify({
         success: true,
