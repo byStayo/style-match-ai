@@ -108,12 +108,24 @@ async function analyzeProductWithOpenAI(imageUrl: string): Promise<{ styleTags: 
   const data = await response.json();
   const analysis = JSON.parse(data.choices[0].message.content);
 
-  // Generate a simple embedding (in production, use a proper embedding model)
-  const embedding = new Array(512).fill(0).map(() => Math.random() - 0.5);
+  // Get embedding for the image and tags
+  const embeddingResponse = await fetch('https://api.openai.com/v1/embeddings', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${openAIApiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'text-embedding-3-small',
+      input: JSON.stringify({ tags: analysis.tags, title: imageUrl }),
+    }),
+  });
+
+  const embeddingData = await embeddingResponse.json();
   
   return {
     styleTags: analysis.tags,
-    embedding
+    embedding: embeddingData.data[0].embedding
   };
 }
 
