@@ -9,15 +9,16 @@ interface ProductSortProps {
 
 export const ProductSort = ({ sortBy, onSort }: ProductSortProps) => {
   return (
-    <div className="flex items-center justify-end mb-4">
+    <div className="flex items-center justify-end gap-2">
+      <span className="text-sm text-muted-foreground">Sort by:</span>
       <Select value={sortBy} onValueChange={(value) => onSort(value as SortOption)}>
         <SelectTrigger className="w-[180px]">
-          <SelectValue placeholder="Sort by..." />
+          <SelectValue />
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="match">Best Match</SelectItem>
           <SelectItem value="price">Price</SelectItem>
-          <SelectItem value="date">Latest</SelectItem>
+          <SelectItem value="date">Most Recent</SelectItem>
         </SelectContent>
       </Select>
     </div>
