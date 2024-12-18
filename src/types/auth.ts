@@ -1,5 +1,5 @@
 export interface UserData {
-  id: string;
+  id: string; // Add this line to fix the TypeScript errors
   email?: string | null;
   displayName?: string | null;
   photoURL?: string | null;
