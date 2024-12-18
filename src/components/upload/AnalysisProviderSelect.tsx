@@ -20,7 +20,7 @@ export const AnalysisProviderSelect = ({ value, onChange }: AnalysisProviderSele
         </SelectContent>
       </Select>
       <p className="text-sm text-muted-foreground mt-1">
-        OpenAI Vision provides more detailed style analysis
+        OpenAI Vision provides more detailed style analysis and better matching results
       </p>
     </div>
   );

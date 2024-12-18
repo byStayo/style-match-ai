@@ -6,7 +6,7 @@ export async function analyzeWithOpenAI(imageUrl: string): Promise<StyleAnalysis
     throw new Error('OpenAI API key not configured');
   }
 
-  console.log('Using OpenAI Vision for detailed style analysis');
+  console.log('Starting OpenAI Vision analysis for:', imageUrl);
 
   try {
     // First, get detailed style analysis using GPT-4 Vision
@@ -17,7 +17,7 @@ export async function analyzeWithOpenAI(imageUrl: string): Promise<StyleAnalysis
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: 'gpt-4-vision-preview',
         messages: [
           {
             role: 'system',
@@ -28,7 +28,7 @@ export async function analyzeWithOpenAI(imageUrl: string): Promise<StyleAnalysis
             content: [
               {
                 type: 'text',
-                text: 'Analyze this fashion image and return ONLY a JSON object with the following structure, no other text:\n{\n  "style_categories": string[],\n  "key_features": string[],\n  "color_palette": string[],\n  "occasions": string[],\n  "style_attributes": string[]\n}'
+                text: 'Analyze this fashion image and return ONLY a JSON object with the following structure:\n{\n  "style_categories": string[],\n  "key_features": string[],\n  "color_palette": string[],\n  "occasions": string[],\n  "style_attributes": string[]\n}'
               },
               {
                 type: 'image_url',
@@ -109,8 +109,13 @@ export async function analyzeWithOpenAI(imageUrl: string): Promise<StyleAnalysis
       confidence_scores: null,
       metadata: {
         provider: 'openai',
-        model: 'gpt-4o',
-        description: description
+        model: 'gpt-4-vision-preview',
+        description: description,
+        style_categories: parsedAnalysis.style_categories,
+        key_features: parsedAnalysis.key_features,
+        color_palette: parsedAnalysis.color_palette,
+        occasions: parsedAnalysis.occasions,
+        style_attributes: parsedAnalysis.style_attributes
       }
     };
   } catch (error) {

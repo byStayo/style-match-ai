@@ -63,6 +63,8 @@ export const ImageUpload = () => {
       setPreview(URL.createObjectURL(file));
       setUploadProgress(50);
       
+      console.log('Analyzing image with provider:', analysisProvider);
+      
       // Analyze the image
       const { data: analysisData, error: analysisError } = await supabase.functions.invoke('analyze-style', {
         body: { 
@@ -76,6 +78,7 @@ export const ImageUpload = () => {
         throw new Error('Failed to analyze image: ' + analysisError.message);
       }
 
+      console.log('Analysis result:', analysisData);
       setUploadProgress(80);
 
       // Store the upload and analysis in the database
