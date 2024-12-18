@@ -27,7 +27,6 @@ export const ImageUploader = () => {
       const objectUrl = URL.createObjectURL(file);
       setPreview(objectUrl);
       
-      // Show upload starting toast
       toast({
         title: "Starting upload",
         description: "Your image is being uploaded and analyzed...",
@@ -35,14 +34,12 @@ export const ImageUploader = () => {
 
       await handleFileUpload(file);
       
-      // Show success toast
       toast({
         title: "Upload successful!",
         description: "Your image has been analyzed. Redirecting to matches...",
-        variant: "success",
+        variant: "default",
       });
 
-      // Navigate to matches page after successful upload
       navigate("/matches");
     } catch (error) {
       console.error("Upload error:", error);
