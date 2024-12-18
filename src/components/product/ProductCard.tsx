@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Heart, ExternalLink, Info, Store, Tag, Percent } from "lucide-react";
+import { Heart, ExternalLink, Info, Store, Tag, Percent, Sparkles, DollarSign } from "lucide-react";
 import { ProductMatch } from "@/types/product";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -37,23 +37,39 @@ export const ProductCard = ({ item, onFavorite }: ProductCardProps) => {
             alt={item.product_title}
             className="w-full h-full object-cover transition-transform group-hover:scale-105"
           />
-          <HoverCard>
-            <HoverCardTrigger asChild>
-              <div 
-                className={`absolute top-2 right-2 ${matchColor} text-white px-3 py-1.5 rounded-full text-sm flex items-center gap-1.5 cursor-help shadow-md`}
-              >
-                <Percent className="h-4 w-4" />
-                <span className="font-medium">{matchPercentage}%</span>
-                <Info className="h-4 w-4" />
-              </div>
-            </HoverCardTrigger>
-            <HoverCardContent className="w-80">
-              <div className="space-y-2">
-                <h4 className="text-sm font-semibold">Match Details</h4>
-                <p className="text-sm text-muted-foreground">{item.match_explanation}</p>
-              </div>
-            </HoverCardContent>
-          </HoverCard>
+          <div className="absolute top-2 right-2 flex flex-col gap-2">
+            <HoverCard>
+              <HoverCardTrigger asChild>
+                <div 
+                  className={`${matchColor} text-white px-3 py-1.5 rounded-full text-sm flex items-center gap-1.5 cursor-help shadow-md`}
+                >
+                  <Percent className="h-4 w-4" />
+                  <span className="font-medium">{matchPercentage}%</span>
+                  <Info className="h-4 w-4" />
+                </div>
+              </HoverCardTrigger>
+              <HoverCardContent className="w-80">
+                <div className="space-y-2">
+                  <h4 className="text-sm font-semibold">Match Details</h4>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Style Match:</span>
+                      <span className="font-medium">{Math.round(item.confidence_scores?.style_match * 100)}%</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Price Match:</span>
+                      <span className="font-medium">{Math.round(item.confidence_scores?.price_match * 100)}%</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Availability:</span>
+                      <span className="font-medium">{Math.round(item.confidence_scores?.availability * 100)}%</span>
+                    </div>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-2">{item.match_explanation}</p>
+                </div>
+              </HoverCardContent>
+            </HoverCard>
+          </div>
           <Button
             variant="ghost"
             size="icon"

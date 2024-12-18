@@ -9,7 +9,10 @@ import {
   ResponsiveContainer,
   PieChart,
   Pie,
-  Cell
+  Cell,
+  LineChart,
+  Line,
+  Legend
 } from "recharts";
 import { ProductMatch } from "@/types/product";
 
@@ -59,6 +62,16 @@ export const MatchAnalytics = ({ matches }: MatchAnalyticsProps) => {
     
     return acc;
   }, [] as { name: string; count: number; value: number }[]);
+
+  // Calculate confidence scores over time
+  const confidenceData = matches
+    .sort((a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime())
+    .map(match => ({
+      date: new Date(match.created_at || 0).toLocaleDateString(),
+      styleMatch: Math.round(match.confidence_scores?.style_match * 100) || 0,
+      priceMatch: Math.round(match.confidence_scores?.price_match * 100) || 0,
+      availability: Math.round(match.confidence_scores?.availability * 100) || 0,
+    }));
 
   // Calculate style tags distribution
   const styleTagsData = matches.reduce((acc, match) => {
@@ -112,11 +125,28 @@ export const MatchAnalytics = ({ matches }: MatchAnalyticsProps) => {
               ))}
             </Pie>
             <Tooltip />
+            <Legend />
           </PieChart>
         </ResponsiveContainer>
       </Card>
 
-      <Card className="p-6 md:col-span-2">
+      <Card className="p-6">
+        <h3 className="text-lg font-semibold mb-4">Confidence Scores Trend</h3>
+        <ResponsiveContainer width="100%" height={300}>
+          <LineChart data={confidenceData}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="date" />
+            <YAxis />
+            <Tooltip />
+            <Legend />
+            <Line type="monotone" dataKey="styleMatch" stroke="#3b82f6" name="Style Match" />
+            <Line type="monotone" dataKey="priceMatch" stroke="#10b981" name="Price Match" />
+            <Line type="monotone" dataKey="availability" stroke="#f59e0b" name="Availability" />
+          </LineChart>
+        </ResponsiveContainer>
+      </Card>
+
+      <Card className="p-6">
         <h3 className="text-lg font-semibold mb-4">Top Style Tags</h3>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={styleTagsData}>

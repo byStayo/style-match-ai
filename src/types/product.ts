@@ -10,6 +10,11 @@ export interface ProductMatch {
   is_favorite: boolean;
   created_at?: string;
   style_tags?: string[];
+  confidence_scores?: {
+    style_match: number;
+    price_match: number;
+    availability: number;
+  };
 }
 
 export interface StyleMatch {
