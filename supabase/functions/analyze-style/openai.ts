@@ -32,7 +32,7 @@ export async function analyzeWithOpenAI(imageUrl: string, model = 'gpt-4o-mini')
             content: [
               {
                 type: 'text',
-                text: 'Analyze this fashion image and return ONLY a JSON object with the following structure:\n{\n  "style_categories": string[],\n  "key_features": string[],\n  "color_palette": string[],\n  "occasions": string[],\n  "style_attributes": string[]\n}'
+                text: 'Analyze this fashion image and return a JSON object with the following structure:\n{\n  "style_categories": ["casual", "streetwear"],\n  "key_features": ["denim jacket", "white t-shirt"],\n  "color_palette": ["blue", "white"],\n  "occasions": ["casual outings", "street style"],\n  "style_attributes": ["relaxed", "urban"]\n}'
               },
               {
                 type: 'image_url',
@@ -70,7 +70,9 @@ export async function analyzeWithOpenAI(imageUrl: string, model = 'gpt-4o-mini')
     try {
       const content = visionData.choices[0].message.content.trim();
       console.log('Attempting to parse content:', content);
-      parsedAnalysis = JSON.parse(content);
+      // Remove any markdown formatting that might be present
+      const jsonContent = content.replace(/```json\n?|\n?```/g, '').trim();
+      parsedAnalysis = JSON.parse(jsonContent);
       
       // Validate required fields
       if (!parsedAnalysis.style_categories || !Array.isArray(parsedAnalysis.style_categories)) {
