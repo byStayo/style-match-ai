@@ -59,7 +59,7 @@ export const CustomStoreForm = () => {
       const { error } = await supabase.from('stores').insert({
         name: storeName,
         url: storeUrl,
-        integration_type: 'custom',
+        integration_type: "scrape" as const,
         is_active: true,
         owner_id: sessionData.session.user.id,
         is_official: false
@@ -114,14 +114,14 @@ export const CustomStoreForm = () => {
       <DialogTrigger asChild>
         <Button
           variant="outline"
-          className="h-auto py-6 px-4 flex flex-col items-center gap-4"
+          className="h-auto py-6 px-4 flex flex-col items-center gap-4 w-full md:w-auto animate-fade-in hover:bg-accent/5"
         >
-          <Key className="w-12 h-12" />
+          <Key className="w-12 h-12 text-primary" />
           <span className="text-lg font-medium">Add Custom Store</span>
           <span className="text-sm text-muted-foreground">Using your own API key</span>
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Add Custom Store</DialogTitle>
           <DialogDescription>
@@ -136,6 +136,7 @@ export const CustomStoreForm = () => {
               value={storeName}
               onChange={(e) => setStoreName(e.target.value)}
               placeholder="Enter store name"
+              className="w-full"
             />
           </div>
           <div className="space-y-2">
@@ -145,6 +146,7 @@ export const CustomStoreForm = () => {
               value={storeUrl}
               onChange={(e) => setStoreUrl(e.target.value)}
               placeholder="https://example.com"
+              className="w-full"
             />
           </div>
           <Button 

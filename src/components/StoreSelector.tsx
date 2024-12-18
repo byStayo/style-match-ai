@@ -109,7 +109,7 @@ export const StoreSelector = () => {
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
         {[1, 2, 3].map((i) => (
           <Card key={i} className="p-6">
             <Skeleton className="h-8 w-8 rounded-full mb-4" />
@@ -121,16 +121,24 @@ export const StoreSelector = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <SupportedStoreList
-          stores={stores || []}
-          selectedStores={selectedStores}
-          onStoreSelect={handleStoreSelect}
-          isProcessing={isProcessing}
-        />
-        <CustomStoreForm />
-        <StoreRequestForm />
+    <div className="space-y-6 p-4 max-w-7xl mx-auto">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="col-span-full lg:col-span-2">
+          <h2 className="text-2xl font-semibold mb-4 text-center md:text-left">Supported Stores</h2>
+          <SupportedStoreList
+            stores={stores || []}
+            selectedStores={selectedStores}
+            onStoreSelect={handleStoreSelect}
+            isProcessing={isProcessing}
+          />
+        </div>
+        <div className="space-y-6">
+          <h2 className="text-2xl font-semibold mb-4 text-center md:text-left">Add More Stores</h2>
+          <div className="grid grid-cols-1 gap-4">
+            <CustomStoreForm />
+            <StoreRequestForm />
+          </div>
+        </div>
       </div>
     </div>
   );
