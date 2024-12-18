@@ -2,6 +2,11 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
 import { fetchHMProducts } from '../fetch-store-products/stores/hm.ts'
 import { fetchUniqloProducts } from '../fetch-store-products/stores/uniqlo.ts'
+import { fetchZaraProducts } from '../fetch-store-products/stores/zara.ts'
+import { fetchAsosProducts } from '../fetch-store-products/stores/asos.ts'
+import { fetchMangoProducts } from '../fetch-store-products/stores/mango.ts'
+import { fetchNikeProducts } from '../fetch-store-products/stores/nike.ts'
+import { fetchNordstromProducts } from '../fetch-store-products/stores/nordstrom.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -9,7 +14,6 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
@@ -23,13 +27,11 @@ serve(async (req) => {
 
     console.log(`Fetching products for store: ${storeName}`)
 
-    // Initialize Supabase client
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Get store configuration
     const { data: store, error: storeError } = await supabase
       .from('stores')
       .select('*')
@@ -40,8 +42,9 @@ serve(async (req) => {
       throw new Error(`Store not found: ${storeName}`)
     }
 
-    // Fetch products based on store
     let products = []
+    console.log(`Using ${store.integration_type} integration for ${storeName}`)
+    
     switch (storeName.toLowerCase()) {
       case 'h&m':
         products = await fetchHMProducts()
@@ -49,13 +52,27 @@ serve(async (req) => {
       case 'uniqlo':
         products = await fetchUniqloProducts()
         break
+      case 'zara':
+        products = await fetchZaraProducts()
+        break
+      case 'asos':
+        products = await fetchAsosProducts()
+        break
+      case 'mango':
+        products = await fetchMangoProducts()
+        break
+      case 'nike':
+        products = await fetchNikeProducts()
+        break
+      case 'nordstrom':
+        products = await fetchNordstromProducts()
+        break
       default:
         throw new Error(`Unsupported store: ${storeName}`)
     }
 
     console.log(`Fetched ${products.length} products from ${storeName}`)
 
-    // Store products in database
     const { error: insertError } = await supabase
       .from('products')
       .upsert(
@@ -75,7 +92,6 @@ serve(async (req) => {
       throw new Error(`Failed to store products: ${insertError.message}`)
     }
 
-    // Log the scrape
     await supabase
       .from('store_scrape_logs')
       .insert({
