@@ -16,13 +16,13 @@ serve(async (req) => {
   }
 
   try {
-    const { store } = await req.json();
+    const { store, userId } = await req.json();
     
     if (!store) {
       throw new Error('Store name is required');
     }
 
-    console.log('Scraping products for store:', store);
+    console.log('Starting product indexing for store:', store);
 
     // Initialize Supabase client
     const supabaseAdmin = createClient(
@@ -30,55 +30,115 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
+    // Log scraping start
+    const { error: logError } = await supabaseAdmin
+      .from('store_scrape_logs')
+      .insert({
+        store_id: store,
+        status: 'processing'
+      });
+
+    if (logError) console.error('Error logging scrape start:', logError);
+
     let products: Product[] = [];
     
     // Scrape products based on store
-    switch (store.toLowerCase()) {
-      case 'zara':
-        products = await scrapeZara();
-        break;
-      case 'h&m':
-        products = await scrapeHM();
-        break;
-      default:
-        throw new Error(`Store ${store} not supported`);
-    }
+    try {
+      switch (store.toLowerCase()) {
+        case 'zara':
+          products = await scrapeZara();
+          break;
+        case 'h&m':
+          products = await scrapeHM();
+          break;
+        default:
+          throw new Error(`Store ${store} not supported`);
+      }
 
-    console.log(`Found ${products.length} products`);
+      console.log(`Found ${products.length} products`);
 
-    // Process each product
-    for (const product of products) {
-      // Analyze product with OpenAI
-      const analysis = await analyzeProductWithOpenAI(product.image);
+      // Process each product in batches
+      const batchSize = 10;
+      for (let i = 0; i < products.length; i += batchSize) {
+        const batch = products.slice(i, i + batchSize);
+        
+        await Promise.all(batch.map(async (product) => {
+          try {
+            // Analyze product with OpenAI
+            console.log('Analyzing product:', product.title);
+            const analysis = await analyzeProductWithOpenAI(product.image);
 
-      // Save to products table
-      const { error: productError } = await supabaseAdmin
-        .from('products')
-        .upsert({
-          store_name: store,
-          product_url: product.url,
-          product_image: product.image,
-          product_title: product.title,
-          product_price: product.price,
-          product_description: product.description,
-          style_tags: analysis.styleTags,
-          style_embedding: analysis.embedding
-        }, {
-          onConflict: 'product_url'
+            // Save to products table
+            const { error: productError } = await supabaseAdmin
+              .from('products')
+              .upsert({
+                store_name: store,
+                product_url: product.url,
+                product_image: product.image,
+                product_title: product.title,
+                product_price: product.price,
+                product_description: product.description,
+                style_tags: analysis.styleTags,
+                style_embedding: analysis.embedding
+              }, {
+                onConflict: 'product_url'
+              });
+
+            if (productError) {
+              console.error('Error saving product:', productError);
+              throw productError;
+            }
+          } catch (error) {
+            console.error('Error processing product:', error);
+          }
+        }));
+
+        // Update progress
+        console.log(`Processed ${Math.min((i + batchSize), products.length)} of ${products.length} products`);
+      }
+
+      // Log successful completion
+      await supabaseAdmin
+        .from('store_scrape_logs')
+        .insert({
+          store_id: store,
+          status: 'completed',
+          metadata: { products_processed: products.length }
         });
 
-      if (productError) {
-        console.error('Error saving product:', productError);
+      // If userId provided, trigger matching
+      if (userId) {
+        console.log('Triggering product matching for user:', userId);
+        await supabaseAdmin.functions.invoke('match-products', {
+          body: { 
+            userId,
+            storeFilter: [store],
+            minSimilarity: 0.7,
+            limit: 20
+          }
+        });
       }
-    }
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        products_processed: products.length,
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+      return new Response(
+        JSON.stringify({
+          success: true,
+          products_processed: products.length,
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+
+    } catch (error) {
+      // Log failure
+      await supabaseAdmin
+        .from('store_scrape_logs')
+        .insert({
+          store_id: store,
+          status: 'failed',
+          error_message: error.message
+        });
+
+      throw error;
+    }
 
   } catch (error) {
     console.error('Error in scrape-store function:', error);

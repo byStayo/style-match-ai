@@ -63,6 +63,8 @@ export const StoreSelector = () => {
       } else {
         console.log(`Adding store: ${storeName}`);
         setSelectedStores(prev => [...prev, storeId]);
+        
+        // Save store preference
         const { error: upsertError } = await supabase
           .from('user_store_preferences')
           .upsert({ 
@@ -74,6 +76,11 @@ export const StoreSelector = () => {
         if (upsertError) throw upsertError;
 
         // Trigger product fetch and analysis
+        toast({
+          title: "Connecting store",
+          description: "We're fetching and analyzing products. This may take a few minutes.",
+        });
+
         const { error: scrapeError } = await supabase.functions.invoke('scrape-store', {
           body: { 
             store: storeName,
@@ -88,7 +95,7 @@ export const StoreSelector = () => {
 
         toast({
           title: "Store connected successfully",
-          description: "We'll analyze the products and find matches for your style.",
+          description: "Products are being analyzed. You'll see matches soon.",
         });
       }
     } catch (error) {
