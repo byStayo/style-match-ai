@@ -8,10 +8,10 @@ export default defineConfig(({ mode }) => ({
     host: true, // Listen on all local IPs
     port: 8080,
     strictPort: true, // Fail if port is in use
-    hmr: {
-      clientPort: 443, // Force HMR through HTTPS
-      host: 'localhost'
-    },
+    hmr: mode === 'development' ? {
+      clientPort: process.env.HTTPS === "true" ? 443 : undefined,
+      host: process.env.VITE_HMR_HOST || 'localhost'
+    } : false,
   },
   plugins: [
     react(),
