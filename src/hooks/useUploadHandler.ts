@@ -16,6 +16,10 @@ export const useUploadHandler = () => {
     setUploadProgress(0);
 
     try {
+      if (!userData?.user?.id) {
+        throw new Error("User not authenticated");
+      }
+
       // Validate file
       if (!file.type.startsWith("image/")) {
         throw new Error("Please upload an image file");
@@ -69,7 +73,7 @@ export const useUploadHandler = () => {
       const { error: styleUploadError } = await supabase
         .from('style_uploads')
         .insert({
-          user_id: userData?.id,
+          user_id: userData.user.id,
           image_url: publicUrl,
           upload_type: 'clothing',
           embedding: analysisData.analysis.embedding,
@@ -95,6 +99,9 @@ export const useUploadHandler = () => {
       });
 
       setUploadProgress(100);
+
+      // Redirect to matches page
+      window.location.href = '/matches';
 
     } catch (err) {
       console.error("Upload error:", err);

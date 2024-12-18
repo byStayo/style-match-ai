@@ -30,7 +30,7 @@ serve(async (req) => {
     // Get the style upload embedding
     const { data: styleUpload, error: uploadError } = await supabase
       .from('style_uploads')
-      .select('embedding, metadata')
+      .select('embedding, metadata, user_id')
       .eq('id', styleUploadId)
       .single();
 
@@ -39,19 +39,11 @@ serve(async (req) => {
       throw new Error('Style upload not found or has no embedding');
     }
 
-    console.log('Found style upload with metadata:', styleUpload.metadata);
-
-    // Get products with embeddings, applying store filter if provided
-    const productsQuery = supabase
+    // Get products with embeddings
+    const { data: products, error: productsError } = await supabase
       .from('products')
       .select('*')
       .not('style_embedding', 'is', null);
-
-    if (storeFilter.length > 0) {
-      productsQuery.in('store_id', storeFilter);
-    }
-
-    const { data: products, error: productsError } = await productsQuery;
 
     if (productsError) {
       console.error('Products query error:', productsError);
@@ -60,64 +52,65 @@ serve(async (req) => {
 
     console.log(`Found ${products?.length || 0} products with embeddings`);
 
-    if (!products?.length) {
-      return new Response(
-        JSON.stringify({ matches: [] }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Calculate similarity scores
+    // Calculate similarity scores and filter matches
     const matches = products
       .map(product => {
-        try {
-          const similarity = computeCosineSimilarity(
-            styleUpload.embedding,
-            product.style_embedding
-          );
+        const similarity = computeCosineSimilarity(
+          styleUpload.embedding,
+          product.style_embedding
+        );
 
-          return {
-            ...product,
-            similarity,
-            confidence_scores: {
-              style_match: similarity,
-              price_match: calculatePriceMatchScore(product.product_price, styleUpload.metadata?.price_range),
-              availability: 1.0
-            }
-          };
-        } catch (error) {
-          console.error('Error calculating similarity for product:', product.id, error);
-          return null;
-        }
+        const styleMatch = calculateStyleMatch(
+          product.style_tags,
+          styleUpload.metadata?.style_tags || []
+        );
+
+        const priceMatch = calculatePriceMatch(
+          product.product_price,
+          styleUpload.metadata?.price_range
+        );
+
+        const confidenceScore = (similarity + styleMatch + priceMatch) / 3;
+
+        return {
+          ...product,
+          similarity,
+          confidence_scores: {
+            style_match: styleMatch,
+            price_match: priceMatch,
+            similarity
+          },
+          match_score: confidenceScore
+        };
       })
-      .filter(match => match !== null && match.similarity >= minSimilarity)
-      .sort((a, b) => b.similarity - a.similarity)
+      .filter(match => match.match_score >= minSimilarity)
+      .sort((a, b) => b.match_score - a.match_score)
       .slice(0, limit);
 
     console.log(`Found ${matches.length} matches above similarity threshold`);
 
-    // Generate match explanations
-    const matchesWithExplanations = await Promise.all(
-      matches.map(async (match) => {
-        try {
-          const explanation = await generateMatchExplanation(
-            styleUpload.metadata,
-            match,
-            Deno.env.get('OPENAI_API_KEY')
-          );
-          return { ...match, match_explanation: explanation };
-        } catch (error) {
-          console.error('Error generating explanation:', error);
-          return {
-            ...match,
-            match_explanation: `This item matches your style with ${Math.round(match.similarity * 100)}% confidence`
-          };
-        }
-      })
-    );
+    // Store matches in product_matches table
+    const matchInserts = matches.map(match => ({
+      user_id: styleUpload.user_id,
+      product_url: match.product_url,
+      product_image: match.product_image,
+      product_title: match.product_title,
+      product_price: match.product_price,
+      store_name: match.store_name,
+      match_score: match.match_score,
+      match_explanation: generateMatchExplanation(match)
+    }));
+
+    const { error: insertError } = await supabase
+      .from('product_matches')
+      .upsert(matchInserts);
+
+    if (insertError) {
+      console.error('Error inserting matches:', insertError);
+    }
 
     return new Response(
-      JSON.stringify({ matches: matchesWithExplanations }),
+      JSON.stringify({ matches }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
@@ -130,7 +123,13 @@ serve(async (req) => {
   }
 });
 
-function calculatePriceMatchScore(price: number, priceRange?: { min: number; max: number }): number {
+function calculateStyleMatch(productTags: string[], userTags: string[]): number {
+  if (!productTags?.length || !userTags?.length) return 0.5;
+  const commonTags = productTags.filter(tag => userTags.includes(tag));
+  return commonTags.length / Math.max(productTags.length, userTags.length);
+}
+
+function calculatePriceMatch(price: number, priceRange?: { min: number; max: number }): number {
   if (!priceRange || !price) return 1.0;
   if (price >= priceRange.min && price <= priceRange.max) return 1.0;
   
@@ -141,41 +140,19 @@ function calculatePriceMatchScore(price: number, priceRange?: { min: number; max
   return Math.max(0, 1 - (actualDiff / maxDiff));
 }
 
-async function generateMatchExplanation(
-  styleMetadata: any,
-  product: any,
-  openAIApiKey: string
-): Promise<string> {
-  try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a fashion expert explaining why items match. Keep explanations concise and natural.'
-          },
-          {
-            role: 'user',
-            content: `Explain why these items match:
-              Style preferences: ${JSON.stringify(styleMetadata)}
-              Product: ${JSON.stringify(product)}
-              Similarity score: ${product.similarity}`
-          }
-        ],
-        max_tokens: 100
-      }),
-    });
-
-    const data = await response.json();
-    return data.choices[0].message.content;
-  } catch (error) {
-    console.error('Error generating match explanation:', error);
-    return `This item matches your style with ${Math.round(product.similarity * 100)}% confidence`;
+function generateMatchExplanation(match: any): string {
+  const confidence = Math.round(match.match_score * 100);
+  const styleMatch = Math.round(match.confidence_scores.style_match * 100);
+  
+  let explanation = `This ${match.product_title} matches your style with ${confidence}% confidence. `;
+  
+  if (styleMatch > 80) {
+    explanation += `It strongly matches your style preferences (${styleMatch}% style match).`;
+  } else if (styleMatch > 60) {
+    explanation += `It has several style elements that align with your preferences (${styleMatch}% style match).`;
+  } else {
+    explanation += `It has some style elements that might interest you (${styleMatch}% style match).`;
   }
+
+  return explanation;
 }
