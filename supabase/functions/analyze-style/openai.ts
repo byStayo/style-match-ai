@@ -36,7 +36,10 @@ export async function analyzeWithOpenAI(imageUrl: string, model = 'gpt-4o-mini')
               },
               {
                 type: 'image_url',
-                image_url: { url: imageUrl }
+                image_url: {
+                  url: imageUrl,
+                  detail: 'low'
+                }
               }
             ]
           }
