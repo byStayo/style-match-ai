@@ -23,6 +23,11 @@ export const ImageUploader = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (!userData) {
+      setShowAuthPrompt(true);
+      return;
+    }
+
     try {
       const objectUrl = URL.createObjectURL(file);
       setPreview(objectUrl);
@@ -40,7 +45,10 @@ export const ImageUploader = () => {
         variant: "default",
       });
 
-      navigate("/matches");
+      // Small delay to ensure the success toast is seen
+      setTimeout(() => {
+        navigate("/matches");
+      }, 1500);
     } catch (error) {
       console.error("Upload error:", error);
       toast({
@@ -49,7 +57,7 @@ export const ImageUploader = () => {
         variant: "destructive",
       });
     }
-  }, [handleFileUpload, navigate, toast]);
+  }, [handleFileUpload, navigate, toast, userData]);
 
   return (
     <Card className="w-full max-w-xl mx-auto overflow-hidden bg-gradient-to-br from-background to-accent/10 border-2 hover:border-accent/20 transition-all duration-300">

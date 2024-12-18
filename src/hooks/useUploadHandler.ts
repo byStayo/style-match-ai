@@ -25,11 +25,11 @@ export const useUploadHandler = () => {
         throw new Error("Image size should be less than 5MB");
       }
 
-      setUploadProgress(10);
+      setUploadProgress(20);
 
       // Generate unique filename
       const fileExt = file.name.split('.').pop();
-      const fileName = `upload_${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
       const filePath = `uploads/${fileName}`;
 
       // Upload to Supabase Storage
@@ -42,67 +42,59 @@ export const useUploadHandler = () => {
 
       if (uploadError) throw uploadError;
 
-      setUploadProgress(30);
+      setUploadProgress(40);
 
       // Get public URL
       const { data: { publicUrl } } = supabase.storage
         .from('style-uploads')
         .getPublicUrl(filePath);
 
-      setUploadProgress(50);
-      
-      // Use appropriate model based on subscription
-      const selectedModel = userData?.subscription_tier === 'premium' ? 'gpt-4o' : 'gpt-4o-mini';
-      const provider = 'openai';
-      
-      // Analyze image
-      const { data: analysisData, error: analysisError } = await supabase.functions.invoke('analyze-style', {
-        body: { 
-          imageUrl: publicUrl,
-          visionModel: selectedModel,
-          provider: provider
-        }
-      });
+      setUploadProgress(60);
+
+      // Call analyze-style function
+      const { data: analysisData, error: analysisError } = await supabase.functions
+        .invoke('analyze-style', {
+          body: { 
+            imageUrl: publicUrl,
+            visionModel: 'gpt-4o-mini',
+            provider: 'openai'
+          }
+        });
 
       if (analysisError) throw analysisError;
 
       setUploadProgress(80);
 
-      // Store analysis results
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (sessionData.session?.user) {
-        const { error: styleUploadError } = await supabase
-          .from('style_uploads')
-          .insert({
-            user_id: sessionData.session.user.id,
-            image_url: publicUrl,
-            upload_type: 'clothing',
-            embedding: analysisData.analysis.embedding,
-            metadata: {
-              style_tags: analysisData.analysis.style_tags,
-              vision_model: selectedModel,
-              provider: provider,
-              ...analysisData.analysis.metadata
-            }
-          });
-
-        if (styleUploadError) throw styleUploadError;
-
-        // Trigger immediate product matching
-        await supabase.functions.invoke('match-products', {
-          body: { 
-            styleUploadId: analysisData.id,
-            minSimilarity: 0.7,
-            limit: 20
+      // Store upload and analysis results
+      const { error: styleUploadError } = await supabase
+        .from('style_uploads')
+        .insert({
+          user_id: userData?.id,
+          image_url: publicUrl,
+          upload_type: 'clothing',
+          embedding: analysisData.analysis.embedding,
+          metadata: {
+            style_tags: analysisData.analysis.style_tags,
+            analysis_provider: 'openai',
+            vision_model: 'gpt-4o-mini',
+            ...analysisData.analysis.metadata
           }
         });
-      }
+
+      if (styleUploadError) throw styleUploadError;
+
+      setUploadProgress(90);
+
+      // Trigger immediate product matching
+      await supabase.functions.invoke('match-products', {
+        body: { 
+          styleUploadId: analysisData.id,
+          minSimilarity: 0.7,
+          limit: 20
+        }
+      });
 
       setUploadProgress(100);
-      toast({
-        title: "Upload successful!",
-        description: "Your image has been analyzed. We'll show you matching items.",
-      });
 
     } catch (err) {
       console.error("Upload error:", err);
