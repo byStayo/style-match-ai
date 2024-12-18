@@ -1,13 +1,4 @@
 project_id = "ynlepnfnhyeswtiakyve"
 
-[functions.analyze-product]
-verify_jwt = false
-
-[functions.fetch-products]
-verify_jwt = false
-
-[functions.analyze-style]
-verify_jwt = true
-
-[functions.match-products]
+[match-style]
 verify_jwt = true
