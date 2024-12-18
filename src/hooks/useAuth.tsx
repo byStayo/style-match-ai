@@ -48,7 +48,7 @@ export const useAuth = () => {
 
       if (data) {
         setUserData({
-          id: userId, // Include the user ID
+          id: userId,
           email: user?.email,
           displayName: data.full_name,
           photoURL: data.avatar_url,
