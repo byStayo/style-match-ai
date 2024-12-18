@@ -13,6 +13,8 @@ export interface UserData {
   };
   upload_count?: number;
   subscription_tier?: string;
+  subscription_status?: string;
+  openai_api_key?: string;
 }
 
 export interface AuthState {

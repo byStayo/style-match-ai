@@ -91,7 +91,7 @@ export const ImageUploader = () => {
         </div>
 
         <ErrorDialog 
-          error={error}
+          error={error?.message || ''}
           onClose={() => null}
         />
 

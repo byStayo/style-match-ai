@@ -2,6 +2,11 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { useToast } from "./use-toast";
+import { FileOptions } from "@supabase/storage-js";
+
+interface CustomFileOptions extends FileOptions {
+  onUploadProgress?: (progress: { loaded: number; total: number }) => void;
+}
 
 export const useUploadHandler = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -25,14 +30,16 @@ export const useUploadHandler = () => {
       const fileName = `${Math.random()}.${fileExt}`;
       const filePath = `${userData.id}/${fileName}`;
 
+      const uploadOptions: CustomFileOptions = {
+        upsert: true,
+        onUploadProgress: (progress) => {
+          setUploadProgress((progress.loaded / progress.total) * 50); // First 50%
+        },
+      };
+
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('style-uploads')
-        .upload(filePath, file, {
-          upsert: true,
-          onUploadProgress: (progress) => {
-            setUploadProgress((progress.loaded / progress.total) * 50); // First 50%
-          },
-        });
+        .upload(filePath, file, uploadOptions);
 
       if (uploadError) throw uploadError;
 
