@@ -27,7 +27,7 @@ export const SettingsPage = () => {
         <>
           <h1 className="text-3xl font-bold">Settings</h1>
           <div className="grid gap-6">
-            <LLMSettings />
+            <LLMSettings user={user} />
             <APIKeySettings />
             <PreferencesSettings />
           </div>
