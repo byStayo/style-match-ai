@@ -1,5 +1,5 @@
 export interface UserData {
-  id: string; // Add this line to fix the TypeScript errors
+  id: string;
   email?: string | null;
   displayName?: string | null;
   photoURL?: string | null;
@@ -30,10 +30,4 @@ export interface UserData {
       lastSync: string;
     };
   };
-}
-
-export interface AuthState {
-  user: UserData | null;
-  loading: boolean;
-  error: Error | null;
 }
