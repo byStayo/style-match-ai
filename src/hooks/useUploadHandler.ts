@@ -2,11 +2,12 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { useToast } from "./use-toast";
+import type { UserData } from "@/types/auth";
 
-interface UserProfile {
-  id: string;
-  email?: string;
-  preferences?: Record<string, any>;
+interface UploadProgress {
+  stage: 'upload' | 'analysis' | 'matching';
+  percent: number;
+  message: string;
 }
 
 export const useUploadHandler = () => {
@@ -42,7 +43,7 @@ export const useUploadHandler = () => {
       const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
       const filePath = `uploads/${fileName}`;
 
-      // Upload to Supabase Storage
+      // Upload to Supabase Storage with progress tracking
       const { error: uploadError, data: uploadData } = await supabase.storage
         .from('style-uploads')
         .upload(filePath, file, {
@@ -66,12 +67,18 @@ export const useUploadHandler = () => {
         .invoke('analyze-style', {
           body: { 
             imageUrl: publicUrl,
-            visionModel: 'gpt-4-vision-preview',
+            visionModel: 'gpt-4o-mini',
             provider: 'openai',
             options: {
               detailedAnalysis: true,
               confidenceScoring: true,
-              styleTagging: true
+              styleTagging: true,
+              colorAnalysis: true,
+              attributeWeighting: {
+                style: 0.6,
+                color: 0.2,
+                occasion: 0.2
+              }
             }
           }
         });
@@ -91,10 +98,11 @@ export const useUploadHandler = () => {
           metadata: {
             style_tags: analysisData.analysis.style_tags,
             analysis_provider: 'openai',
-            vision_model: 'gpt-4-vision-preview',
+            vision_model: 'gpt-4o-mini',
             confidence_scores: analysisData.analysis.confidence_scores,
             style_attributes: analysisData.analysis.style_attributes,
             color_analysis: analysisData.analysis.color_analysis,
+            occasion_matches: analysisData.analysis.occasion_matches,
             ...analysisData.analysis.metadata
           }
         });
@@ -113,7 +121,15 @@ export const useUploadHandler = () => {
             weightedScoring: true,
             styleTagMatching: true,
             confidenceThreshold: 0.8,
-            priceRangeMatching: true
+            priceRangeMatching: true,
+            colorMatching: true,
+            occasionMatching: true,
+            weights: {
+              style: 0.5,
+              color: 0.2,
+              occasion: 0.2,
+              price: 0.1
+            }
           }
         }
       });
