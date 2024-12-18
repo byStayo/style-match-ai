@@ -3,6 +3,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { useToast } from "./use-toast";
 
+interface UserProfile {
+  id: string;
+  email?: string;
+  preferences?: Record<string, any>;
+}
+
 export const useUploadHandler = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -55,13 +61,18 @@ export const useUploadHandler = () => {
 
       setUploadProgress(60);
 
-      // Call analyze-style function
+      // Call analyze-style function with enhanced options
       const { data: analysisData, error: analysisError } = await supabase.functions
         .invoke('analyze-style', {
           body: { 
             imageUrl: publicUrl,
-            visionModel: 'gpt-4o-mini',
-            provider: 'openai'
+            visionModel: 'gpt-4-vision-preview',
+            provider: 'openai',
+            options: {
+              detailedAnalysis: true,
+              confidenceScoring: true,
+              styleTagging: true
+            }
           }
         });
 
@@ -69,7 +80,7 @@ export const useUploadHandler = () => {
 
       setUploadProgress(80);
 
-      // Store upload and analysis results
+      // Store upload and analysis results with enhanced metadata
       const { error: styleUploadError } = await supabase
         .from('style_uploads')
         .insert({
@@ -80,7 +91,10 @@ export const useUploadHandler = () => {
           metadata: {
             style_tags: analysisData.analysis.style_tags,
             analysis_provider: 'openai',
-            vision_model: 'gpt-4o-mini',
+            vision_model: 'gpt-4-vision-preview',
+            confidence_scores: analysisData.analysis.confidence_scores,
+            style_attributes: analysisData.analysis.style_attributes,
+            color_analysis: analysisData.analysis.color_analysis,
             ...analysisData.analysis.metadata
           }
         });
@@ -89,16 +103,27 @@ export const useUploadHandler = () => {
 
       setUploadProgress(90);
 
-      // Trigger immediate product matching
+      // Trigger immediate product matching with enhanced parameters
       await supabase.functions.invoke('match-products', {
         body: { 
           styleUploadId: analysisData.id,
           minSimilarity: 0.7,
-          limit: 20
+          limit: 20,
+          options: {
+            weightedScoring: true,
+            styleTagMatching: true,
+            confidenceThreshold: 0.8,
+            priceRangeMatching: true
+          }
         }
       });
 
       setUploadProgress(100);
+
+      toast({
+        title: "Upload successful",
+        description: "Your style has been analyzed and matches are being generated.",
+      });
 
       // Redirect to matches page
       window.location.href = '/matches';
@@ -106,6 +131,13 @@ export const useUploadHandler = () => {
     } catch (err) {
       console.error("Upload error:", err);
       setError(err instanceof Error ? err.message : "Failed to upload image");
+      
+      toast({
+        title: "Upload failed",
+        description: err instanceof Error ? err.message : "Failed to upload image",
+        variant: "destructive",
+      });
+      
       throw err;
     } finally {
       setIsLoading(false);

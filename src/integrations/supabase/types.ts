@@ -61,8 +61,11 @@ export type Database = {
       }
       products: {
         Row: {
+          confidence_score: number | null
           created_at: string | null
           id: string
+          last_indexed_at: string | null
+          matching_weights: Json | null
           product_description: string | null
           product_image: string
           product_price: number
@@ -73,8 +76,11 @@ export type Database = {
           style_tags: string[] | null
         }
         Insert: {
+          confidence_score?: number | null
           created_at?: string | null
           id?: string
+          last_indexed_at?: string | null
+          matching_weights?: Json | null
           product_description?: string | null
           product_image: string
           product_price: number
@@ -85,8 +91,11 @@ export type Database = {
           style_tags?: string[] | null
         }
         Update: {
+          confidence_score?: number | null
           created_at?: string | null
           id?: string
+          last_indexed_at?: string | null
+          matching_weights?: Json | null
           product_description?: string | null
           product_image?: string
           product_price?: number
@@ -259,25 +268,43 @@ export type Database = {
       }
       store_scrape_logs: {
         Row: {
+          batch_id: string | null
           created_at: string | null
           error_message: string | null
+          failed_count: number | null
           id: string
+          processed_products: number | null
+          processing_stats: Json | null
           status: string
           store_id: string | null
+          success_count: number | null
+          total_products: number | null
         }
         Insert: {
+          batch_id?: string | null
           created_at?: string | null
           error_message?: string | null
+          failed_count?: number | null
           id?: string
+          processed_products?: number | null
+          processing_stats?: Json | null
           status: string
           store_id?: string | null
+          success_count?: number | null
+          total_products?: number | null
         }
         Update: {
+          batch_id?: string | null
           created_at?: string | null
           error_message?: string | null
+          failed_count?: number | null
           id?: string
+          processed_products?: number | null
+          processing_stats?: Json | null
           status?: string
           store_id?: string | null
+          success_count?: number | null
+          total_products?: number | null
         }
         Relationships: [
           {
@@ -506,6 +533,15 @@ export type Database = {
             }
             Returns: unknown
           }
+      calculate_match_score: {
+        Args: {
+          style_similarity: number
+          tag_similarity: number
+          price_match: number
+          weights?: Json
+        }
+        Returns: number
+      }
       check_system_health: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -608,23 +644,46 @@ export type Database = {
             }
             Returns: unknown
           }
-      match_products: {
-        Args: {
-          query_embedding: string
-          similarity_threshold: number
-          match_count: number
-          store_filter: string[]
-        }
-        Returns: {
-          id: string
-          product_url: string
-          product_image: string
-          product_title: string
-          product_price: number
-          store_name: string
-          similarity: number
-        }[]
-      }
+      match_products:
+        | {
+            Args: {
+              query_embedding: string
+              similarity_threshold: number
+              match_count: number
+              store_filter: string[]
+            }
+            Returns: {
+              id: string
+              product_url: string
+              product_image: string
+              product_title: string
+              product_price: number
+              store_name: string
+              similarity: number
+            }[]
+          }
+        | {
+            Args: {
+              query_embedding: string
+              similarity_threshold: number
+              match_count: number
+              store_filter: string[]
+              price_range?: Json
+            }
+            Returns: {
+              id: string
+              product_url: string
+              product_image: string
+              product_title: string
+              product_price: number
+              store_name: string
+              similarity: number
+              confidence_score: number
+              style_match: number
+              tag_match: number
+              price_match: number
+            }[]
+          }
       sparsevec_out: {
         Args: {
           "": unknown
