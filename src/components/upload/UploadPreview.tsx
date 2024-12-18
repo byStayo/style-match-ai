@@ -8,8 +8,8 @@ interface UploadPreviewProps {
 
 export const UploadPreview = ({ preview, onRemove, isLoading }: UploadPreviewProps) => {
   return (
-    <>
-      <div className="relative w-full aspect-square">
+    <div className="space-y-4">
+      <div className="relative w-full aspect-square max-w-sm mx-auto">
         <img
           src={preview}
           alt="Preview"
@@ -19,11 +19,11 @@ export const UploadPreview = ({ preview, onRemove, isLoading }: UploadPreviewPro
       <Button
         onClick={onRemove}
         variant="outline"
-        className="mt-4 w-full"
+        className="w-full max-w-sm mx-auto"
         disabled={isLoading}
       >
         Remove Image
       </Button>
-    </>
+    </div>
   );
 };

@@ -1,17 +1,15 @@
 import { useState, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { useUploadHandler } from "@/hooks/useUploadHandler";
 import { UploadProgress } from "./UploadProgress";
 import { UploadPreview } from "./UploadPreview";
 import { UploadDropzone } from "./UploadDropzone";
 import { ErrorDialog } from "./ErrorDialog";
 import { AnalysisProviderSelect } from "./AnalysisProviderSelect";
 import { GuestAuthPrompt } from "./GuestAuthPrompt";
-import { Button } from "../ui/button";
 import { Card } from "../ui/card";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/hooks/useAuth";
-import { useUploadHandler } from "@/hooks/useUploadHandler";
 
 export const ImageUploader = () => {
   const [preview, setPreview] = useState<string | null>(null);
@@ -41,11 +39,15 @@ export const ImageUploader = () => {
   }, [handleFileUpload, navigate, toast]);
 
   return (
-    <Card className="w-full max-w-md mx-auto p-4 sm:p-6 shadow-lg">
-      <div className="space-y-4 sm:space-y-6">
+    <Card className="w-full max-w-md mx-auto p-6 shadow-md">
+      <div className="space-y-6">
         <AnalysisProviderSelect />
 
-        <div className="relative border-2 border-dashed border-gray-300 rounded-lg p-4 sm:p-8 text-center hover:border-primary transition-colors">
+        <div 
+          className="relative border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-primary transition-colors cursor-pointer"
+          role="button"
+          tabIndex={0}
+        >
           <input
             type="file"
             accept="image/*"

@@ -1,11 +1,10 @@
-import { useState } from "react";
 import { ImageUploader } from "./ImageUploader";
 import { SocialMediaConnect } from "../SocialMediaConnect";
 
 export const UploadSection = () => {
   return (
-    <div className="space-y-8">
-      <section className="bg-background rounded-lg p-8 border">
+    <div className="max-w-4xl mx-auto space-y-8">
+      <section className="bg-background rounded-lg p-8 border shadow-sm">
         <div className="max-w-2xl mx-auto text-center">
           <h2 className="text-2xl font-semibold text-foreground mb-4">
             Upload Your Style
@@ -17,7 +16,7 @@ export const UploadSection = () => {
         </div>
       </section>
 
-      <section className="bg-background rounded-lg p-8 border">
+      <section className="bg-background rounded-lg p-8 border shadow-sm">
         <div className="max-w-2xl mx-auto text-center">
           <h2 className="text-2xl font-semibold text-foreground mb-4">
             Or Connect Your Social Media
