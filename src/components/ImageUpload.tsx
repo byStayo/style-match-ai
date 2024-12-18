@@ -62,12 +62,17 @@ export const ImageUpload = () => {
       setUploadProgress(50);
       
       const selectedModel = userData?.preferences?.vision_model || 'gpt-4-vision';
-      console.log('Analyzing image with model:', selectedModel);
+      const provider = selectedModel.includes('gpt') ? 'openai' : 
+                      selectedModel.includes('claude') ? 'anthropic' :
+                      selectedModel.includes('gemini') ? 'google' : 'huggingface';
+      
+      console.log('Analyzing image with model:', selectedModel, 'provider:', provider);
       
       const { data: analysisData, error: analysisError } = await supabase.functions.invoke('analyze-style', {
         body: { 
           imageUrl: publicUrl,
-          visionModel: selectedModel
+          visionModel: selectedModel,
+          provider: provider
         }
       });
 
@@ -91,6 +96,7 @@ export const ImageUpload = () => {
             metadata: {
               style_tags: analysisData.analysis.style_tags,
               vision_model: selectedModel,
+              provider: provider,
               ...analysisData.analysis.metadata
             }
           });

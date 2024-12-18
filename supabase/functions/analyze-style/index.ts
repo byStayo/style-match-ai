@@ -10,22 +10,35 @@ serve(async (req) => {
   }
 
   try {
-    const { imageUrl, analysisProvider } = await req.json();
+    const { imageUrl, visionModel, provider } = await req.json();
     
     if (!imageUrl) {
       throw new Error('No image URL provided');
     }
 
-    console.log('Starting analysis with provider:', analysisProvider);
+    if (!provider) {
+      throw new Error('No provider specified');
+    }
+
+    console.log('Starting analysis with provider:', provider, 'model:', visionModel);
     
     let styleAnalysis;
     try {
-      if (analysisProvider === 'huggingface') {
-        styleAnalysis = await analyzeWithHuggingFace(imageUrl);
-      } else if (analysisProvider === 'openai') {
-        styleAnalysis = await analyzeWithOpenAI(imageUrl);
-      } else {
-        throw new Error('Invalid analysis provider');
+      switch (provider.toLowerCase()) {
+        case 'huggingface':
+          styleAnalysis = await analyzeWithHuggingFace(imageUrl);
+          break;
+        case 'openai':
+          styleAnalysis = await analyzeWithOpenAI(imageUrl, visionModel);
+          break;
+        case 'anthropic':
+          // TODO: Implement Claude vision analysis
+          throw new Error('Claude vision analysis not yet implemented');
+        case 'google':
+          // TODO: Implement Gemini vision analysis
+          throw new Error('Gemini vision analysis not yet implemented');
+        default:
+          throw new Error('Invalid analysis provider');
       }
     } catch (analysisError) {
       console.error('Analysis failed:', analysisError);
