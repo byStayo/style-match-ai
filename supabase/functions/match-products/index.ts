@@ -20,31 +20,64 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Get the style upload embedding
-    const { data: styleUpload } = await supabase
+    console.log('Finding matches for style upload:', styleUploadId);
+
+    // Get the style upload embedding and metadata
+    const { data: styleUpload, error: uploadError } = await supabase
       .from('style_uploads')
       .select('embedding, metadata')
       .eq('id', styleUploadId)
       .single();
 
-    if (!styleUpload?.embedding) {
+    if (uploadError || !styleUpload?.embedding) {
       throw new Error('Style upload not found or has no embedding');
     }
 
+    console.log('Style upload metadata:', styleUpload.metadata);
+
     // Get products with embeddings
-    const { data: products } = await supabase
+    const { data: products, error: productsError } = await supabase
       .from('products')
       .select('*')
       .not('style_embedding', 'is', null);
 
+    if (productsError) throw productsError;
+
     console.log(`Found ${products?.length || 0} products with embeddings`);
 
-    // Calculate similarity scores
+    // Calculate similarity scores and filter matches
     const matches = products
-      .map(product => ({
-        ...product,
-        similarity: calculateCosineSimilarity(styleUpload.embedding, product.style_embedding)
-      }))
+      .map(product => {
+        // Calculate embedding similarity
+        const embeddingSimilarity = calculateCosineSimilarity(
+          styleUpload.embedding,
+          product.style_embedding
+        );
+
+        // Calculate style tag overlap
+        const styleTagOverlap = calculateStyleTagOverlap(
+          styleUpload.metadata.style_tags || [],
+          product.style_tags || []
+        );
+
+        // Calculate color palette similarity
+        const colorSimilarity = calculateColorSimilarity(
+          styleUpload.metadata.colors || [],
+          product.metadata?.colors || []
+        );
+
+        // Weighted average of different similarity metrics
+        const totalSimilarity = (
+          embeddingSimilarity * 0.5 +
+          styleTagOverlap * 0.3 +
+          colorSimilarity * 0.2
+        );
+
+        return {
+          ...product,
+          similarity: totalSimilarity
+        };
+      })
       .filter(product => product.similarity >= minSimilarity)
       .sort((a, b) => b.similarity - a.similarity)
       .slice(0, limit);
@@ -58,7 +91,15 @@ serve(async (req) => {
           match,
           openAIApiKey
         );
-        return { ...match, match_explanation: explanation };
+        return { 
+          ...match,
+          match_explanation: explanation,
+          confidence_scores: {
+            style_match: match.similarity,
+            price_match: calculatePriceMatchScore(match.product_price),
+            availability: 1.0
+          }
+        };
       })
     );
 
@@ -90,6 +131,27 @@ function calculateCosineSimilarity(vec1: number[], vec2: number[]): number {
   return dotProduct / (Math.sqrt(norm1) * Math.sqrt(norm2));
 }
 
+function calculateStyleTagOverlap(tags1: string[], tags2: string[]): number {
+  const set1 = new Set(tags1.map(t => t.toLowerCase()));
+  const set2 = new Set(tags2.map(t => t.toLowerCase()));
+  const intersection = new Set([...set1].filter(x => set2.has(x)));
+  const union = new Set([...set1, ...set2]);
+  return intersection.size / union.size;
+}
+
+function calculateColorSimilarity(colors1: string[], colors2: string[]): number {
+  if (!colors1.length || !colors2.length) return 0;
+  const set1 = new Set(colors1.map(c => c.toLowerCase()));
+  const set2 = new Set(colors2.map(c => c.toLowerCase()));
+  const intersection = new Set([...set1].filter(x => set2.has(x)));
+  return intersection.size / Math.max(set1.size, set2.size);
+}
+
+function calculatePriceMatchScore(price: number): number {
+  // Implement price range matching logic
+  return price > 0 ? 1.0 : 0.0;
+}
+
 async function generateMatchExplanation(
   styleMetadata: any,
   product: any,
@@ -107,7 +169,7 @@ async function generateMatchExplanation(
         messages: [
           {
             role: 'system',
-            content: 'You are a fashion expert explaining why two items match. Keep explanations concise and natural.'
+            content: 'You are a fashion expert explaining why items match. Keep explanations concise and natural.'
           },
           {
             role: 'user',
