@@ -6,7 +6,29 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Brain, Key, Save } from "lucide-react";
+import { Brain, Key, Save, Sparkles } from "lucide-react";
+
+interface ModelOption {
+  id: string;
+  name: string;
+  description: string;
+  type: 'fast' | 'balanced' | 'powerful';
+}
+
+const MODEL_OPTIONS: ModelOption[] = [
+  {
+    id: "gpt-4o-mini",
+    name: "GPT-4 Mini",
+    description: "Fast and efficient for most tasks",
+    type: 'fast'
+  },
+  {
+    id: "gpt-4o",
+    name: "GPT-4 Optimized",
+    description: "Best quality for complex tasks",
+    type: 'powerful'
+  }
+];
 
 export const LLMSettings = () => {
   const [apiKey, setApiKey] = useState("");
@@ -57,30 +79,50 @@ export const LLMSettings = () => {
     }
   };
 
+  const getModelTypeIcon = (type: ModelOption['type']) => {
+    switch (type) {
+      case 'fast':
+        return <Sparkles className="w-4 h-4 text-green-500" />;
+      case 'powerful':
+        return <Brain className="w-4 h-4 text-purple-500" />;
+      default:
+        return <Brain className="w-4 h-4" />;
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Brain className="w-5 h-5" />
-          LLM Settings
+          Language Model Settings
         </CardTitle>
         <CardDescription>
-          Configure your Language Model preferences and API keys
+          Configure your AI model preferences and API keys
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-2">
+      <CardContent className="space-y-6">
+        <div className="space-y-4">
           <label className="text-sm font-medium">Model Selection</label>
           <Select
             value={selectedModel}
             onValueChange={setSelectedModel}
           >
-            <SelectTrigger>
+            <SelectTrigger className="w-full">
               <SelectValue placeholder="Select LLM model" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="gpt-4o">GPT-4 Optimized (Best Quality)</SelectItem>
-              <SelectItem value="gpt-4o-mini">GPT-4 Mini (Faster)</SelectItem>
+              {MODEL_OPTIONS.map((model) => (
+                <SelectItem key={model.id} value={model.id} className="flex items-center gap-2">
+                  <div className="flex items-center gap-2">
+                    {getModelTypeIcon(model.type)}
+                    <div>
+                      <p className="font-medium">{model.name}</p>
+                      <p className="text-xs text-muted-foreground">{model.description}</p>
+                    </div>
+                  </div>
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <p className="text-sm text-muted-foreground">
@@ -100,10 +142,11 @@ export const LLMSettings = () => {
               placeholder="sk-..."
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
+              className="flex-1"
             />
             <Button 
               onClick={handleSaveSettings} 
-              disabled={!apiKey || isSaving}
+              disabled={isSaving}
               className="gap-2"
             >
               <Save className="w-4 h-4" />
