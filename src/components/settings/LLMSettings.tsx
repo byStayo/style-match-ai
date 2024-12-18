@@ -13,7 +13,7 @@ export const LLMSettings = () => {
   const [selectedModel, setSelectedModel] = useState("gpt-4o");
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, userData } = useAuth();
 
   const handleSaveSettings = async () => {
     if (!user) {
@@ -32,7 +32,7 @@ export const LLMSettings = () => {
         .update({ 
           openai_api_key: apiKey,
           preferences: {
-            ...user.preferences,
+            ...userData?.preferences,
             llm_model: selectedModel
           }
         })
