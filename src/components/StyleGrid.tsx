@@ -10,6 +10,8 @@ import { useStyleMatches } from "@/hooks/useStyleMatches";
 import { useProductFilters } from "@/hooks/useProductFilters";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { Button } from "./ui/button";
+import { RefreshCw } from "lucide-react";
 import type { SortOption } from "@/components/product/ProductSort";
 
 const ITEMS_PER_PAGE = 9; // Show 9 items per page (3x3 grid)
@@ -17,6 +19,7 @@ const ITEMS_PER_PAGE = 9; // Show 9 items per page (3x3 grid)
 export const StyleGrid = () => {
   const [sortBy, setSortBy] = useState<SortOption>("match");
   const [showAnalytics, setShowAnalytics] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const { items, isLoading, error, fetchMatches, toggleFavorite } = useStyleMatches();
   const { user } = useAuth();
   const { toast } = useToast();
@@ -39,6 +42,27 @@ export const StyleGrid = () => {
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleRefresh = async () => {
+    if (!user) return;
+    setIsRefreshing(true);
+    try {
+      await fetchMatches(sortBy);
+      toast({
+        title: "Matches Refreshed",
+        description: "Your style matches have been updated.",
+      });
+    } catch (error) {
+      console.error('Error refreshing matches:', error);
+      toast({
+        title: "Error",
+        description: "Failed to refresh matches. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   useEffect(() => {
@@ -69,6 +93,15 @@ export const StyleGrid = () => {
       <div className="text-center p-8">
         <h3 className="text-xl font-semibold text-red-600">Error Loading Matches</h3>
         <p className="text-muted-foreground mt-2">{error.message}</p>
+        <Button 
+          variant="outline" 
+          onClick={handleRefresh} 
+          className="mt-4"
+          disabled={isRefreshing}
+        >
+          <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+          Try Again
+        </Button>
       </div>
     );
   }
@@ -102,6 +135,16 @@ export const StyleGrid = () => {
           availableCategories={availableCategories}
         />
         <div className="flex items-center gap-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
           <button
             onClick={() => setShowAnalytics(!showAnalytics)}
             className="text-sm text-muted-foreground hover:text-foreground transition-colors"
