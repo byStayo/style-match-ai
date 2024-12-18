@@ -8,115 +8,113 @@ export async function analyzeWithOpenAI(imageUrl: string): Promise<StyleAnalysis
 
   console.log('Using OpenAI Vision for detailed style analysis');
 
-  // First, get detailed style analysis using GPT-4 Vision
-  const visionResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${openAIApiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'gpt-4o',
-      messages: [
-        {
-          role: 'system',
-          content: `You are a fashion style analyzer. Analyze the image and provide a JSON object with:
-            {
-              "style_categories": ["casual", "formal", etc],
-              "key_features": ["patterns", "materials", "fit"],
-              "color_palette": ["colors"],
-              "occasion_suitability": ["work", "casual", etc],
-              "style_attributes": ["minimalist", "bohemian", etc]
-            }`
-        },
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: 'Analyze this fashion image in detail.',
-            },
-            {
-              type: 'image_url',
-              image_url: { url: imageUrl },
-            },
-          ],
-        },
-      ],
-      max_tokens: 1000,
-    }),
-  });
-
-  if (!visionResponse.ok) {
-    console.error('OpenAI Vision API error:', await visionResponse.text());
-    throw new Error(`OpenAI Vision API error: ${visionResponse.statusText}`);
-  }
-
-  const visionData = await visionResponse.json();
-  console.log('OpenAI Vision raw response:', visionData);
-
-  if (!visionData.choices?.[0]?.message?.content) {
-    throw new Error('Invalid response format from OpenAI Vision');
-  }
-
-  let parsedAnalysis;
   try {
-    const content = visionData.choices[0].message.content.trim();
-    parsedAnalysis = JSON.parse(content);
+    // First, get detailed style analysis using GPT-4 Vision
+    const visionResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openAIApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a fashion style analyzer. Analyze the image and provide a detailed analysis in a specific JSON format.'
+          },
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: 'Analyze this fashion image and return ONLY a JSON object with the following structure, no other text:\n{\n  "style_categories": string[],\n  "key_features": string[],\n  "color_palette": string[],\n  "occasions": string[],\n  "style_attributes": string[]\n}'
+              },
+              {
+                type: 'image_url',
+                image_url: { url: imageUrl }
+              }
+            ]
+          }
+        ],
+        max_tokens: 1000,
+      }),
+    });
+
+    if (!visionResponse.ok) {
+      console.error('OpenAI Vision API error:', await visionResponse.text());
+      throw new Error(`OpenAI Vision API error: ${visionResponse.statusText}`);
+    }
+
+    const visionData = await visionResponse.json();
+    console.log('OpenAI Vision raw response:', visionData);
+
+    if (!visionData.choices?.[0]?.message?.content) {
+      throw new Error('Invalid response format from OpenAI Vision');
+    }
+
+    let parsedAnalysis;
+    try {
+      const content = visionData.choices[0].message.content.trim();
+      parsedAnalysis = JSON.parse(content);
+      
+      // Validate required fields
+      if (!parsedAnalysis.style_categories || !Array.isArray(parsedAnalysis.style_categories)) {
+        throw new Error('Missing or invalid style_categories in analysis');
+      }
+    } catch (parseError) {
+      console.error('Failed to parse OpenAI Vision response:', parseError);
+      console.error('Raw content:', visionData.choices[0].message.content);
+      throw new Error('Failed to parse style analysis');
+    }
+
+    // Generate embeddings for the style description
+    const description = JSON.stringify({
+      style_categories: parsedAnalysis.style_categories,
+      key_features: parsedAnalysis.key_features,
+      color_palette: parsedAnalysis.color_palette,
+      occasions: parsedAnalysis.occasions,
+      style_attributes: parsedAnalysis.style_attributes
+    });
+
+    const embeddingResponse = await fetch('https://api.openai.com/v1/embeddings', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openAIApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'text-embedding-3-small',
+        input: description,
+      }),
+    });
+
+    if (!embeddingResponse.ok) {
+      console.error('OpenAI Embedding API error:', await embeddingResponse.text());
+      throw new Error('Failed to generate embedding');
+    }
+
+    const embeddingData = await embeddingResponse.json();
     
-    // Validate required fields
-    if (!parsedAnalysis.style_categories || !Array.isArray(parsedAnalysis.style_categories)) {
-      throw new Error('Missing or invalid style_categories in analysis');
+    if (!embeddingData.data?.[0]?.embedding) {
+      throw new Error('Invalid embedding response format');
     }
-  } catch (parseError) {
-    console.error('Failed to parse OpenAI Vision response:', parseError);
-    console.error('Raw content:', visionData.choices[0].message.content);
-    throw new Error('Failed to parse style analysis');
+
+    return {
+      style_tags: [
+        ...parsedAnalysis.style_categories,
+        ...parsedAnalysis.style_attributes
+      ],
+      embedding: embeddingData.data[0].embedding,
+      confidence_scores: null,
+      metadata: {
+        provider: 'openai',
+        model: 'gpt-4o',
+        description: description
+      }
+    };
+  } catch (error) {
+    console.error('Error in OpenAI analysis:', error);
+    throw error;
   }
-
-  // Generate embeddings for the style description
-  const description = JSON.stringify({
-    style_categories: parsedAnalysis.style_categories,
-    key_features: parsedAnalysis.key_features,
-    color_palette: parsedAnalysis.color_palette,
-    occasions: parsedAnalysis.occasion_suitability,
-    style_attributes: parsedAnalysis.style_attributes
-  });
-
-  const embeddingResponse = await fetch('https://api.openai.com/v1/embeddings', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${openAIApiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'text-embedding-3-small',
-      input: description,
-    }),
-  });
-
-  if (!embeddingResponse.ok) {
-    console.error('OpenAI Embedding API error:', await embeddingResponse.text());
-    throw new Error('Failed to generate embedding');
-  }
-
-  const embeddingData = await embeddingResponse.json();
-  
-  if (!embeddingData.data?.[0]?.embedding) {
-    throw new Error('Invalid embedding response format');
-  }
-
-  return {
-    style_tags: [
-      ...parsedAnalysis.style_categories,
-      ...parsedAnalysis.style_attributes
-    ],
-    embedding: embeddingData.data[0].embedding,
-    confidence_scores: null,
-    metadata: {
-      provider: 'openai',
-      model: 'gpt-4o',
-      description: description
-    }
-  };
 }

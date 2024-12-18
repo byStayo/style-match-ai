@@ -1,10 +1,8 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 import { corsHeaders } from '../_shared/types.ts';
 import { analyzeWithHuggingFace } from './huggingface.ts';
 import { analyzeWithOpenAI } from './openai.ts';
-import { storeAnalysis } from './storage.ts';
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -18,28 +16,20 @@ serve(async (req) => {
       throw new Error('No image URL provided');
     }
 
+    console.log('Starting analysis with provider:', analysisProvider);
+    
     let styleAnalysis;
-    
-    if (analysisProvider === 'huggingface') {
-      styleAnalysis = await analyzeWithHuggingFace(imageUrl);
-    } else if (analysisProvider === 'openai') {
-      styleAnalysis = await analyzeWithOpenAI(imageUrl);
-    } else {
-      throw new Error('Invalid analysis provider');
-    }
-
-    // Store the analysis results if user is authenticated
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-
-    const { data: { user } } = await supabase.auth.getUser(
-      req.headers.get('Authorization')?.split('Bearer ')[1] ?? ''
-    );
-    
-    if (user) {
-      await storeAnalysis(imageUrl, styleAnalysis, user.id);
+    try {
+      if (analysisProvider === 'huggingface') {
+        styleAnalysis = await analyzeWithHuggingFace(imageUrl);
+      } else if (analysisProvider === 'openai') {
+        styleAnalysis = await analyzeWithOpenAI(imageUrl);
+      } else {
+        throw new Error('Invalid analysis provider');
+      }
+    } catch (analysisError) {
+      console.error('Analysis failed:', analysisError);
+      throw new Error(`Analysis failed: ${analysisError.message}`);
     }
 
     return new Response(
