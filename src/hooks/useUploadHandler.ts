@@ -16,7 +16,7 @@ export const useUploadHandler = () => {
     setUploadProgress(0);
 
     try {
-      if (!userData?.user?.id) {
+      if (!userData?.id) {
         throw new Error("User not authenticated");
       }
 
@@ -73,7 +73,7 @@ export const useUploadHandler = () => {
       const { error: styleUploadError } = await supabase
         .from('style_uploads')
         .insert({
-          user_id: userData.user.id,
+          user_id: userData.id,
           image_url: publicUrl,
           upload_type: 'clothing',
           embedding: analysisData.analysis.embedding,
