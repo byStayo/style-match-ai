@@ -21,7 +21,7 @@ export const StyleGrid = () => {
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { items, isLoading, error, fetchMatches, toggleFavorite } = useStyleMatches();
-  const { user } = useAuth();
+  const { userData } = useAuth();
   const { toast } = useToast();
 
   const {
@@ -45,7 +45,7 @@ export const StyleGrid = () => {
   };
 
   const handleRefresh = async () => {
-    if (!user) return;
+    if (!userData?.id) return;
     setIsRefreshing(true);
     try {
       await fetchMatches(sortBy);
@@ -67,13 +67,13 @@ export const StyleGrid = () => {
 
   useEffect(() => {
     const loadMatches = async () => {
-      if (!user) {
+      if (!userData?.id) {
         console.log("No user found, skipping match loading");
         return;
       }
 
       try {
-        console.log("Loading matches for user:", user.id);
+        console.log("Loading matches for user:", userData.id);
         await fetchMatches(sortBy);
       } catch (error) {
         console.error('Error loading style matches:', error);
@@ -86,7 +86,7 @@ export const StyleGrid = () => {
     };
 
     loadMatches();
-  }, [user, sortBy]);
+  }, [userData, sortBy]);
 
   if (error) {
     return (
@@ -110,7 +110,7 @@ export const StyleGrid = () => {
     return <ProductGridSkeleton />;
   }
 
-  if (!user) {
+  if (!userData) {
     return (
       <EmptyProductGrid 
         message="Please sign in to view your style matches"

@@ -2,67 +2,48 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { useToast } from "./use-toast";
-import type { UserData } from "@/types/auth";
-
-interface UploadProgress {
-  stage: 'upload' | 'analysis' | 'matching';
-  percent: number;
-  message: string;
-}
 
 export const useUploadHandler = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<Error | null>(null);
   const { userData } = useAuth();
   const { toast } = useToast();
 
   const handleFileUpload = async (file: File) => {
-    setError(null);
+    if (!userData?.id) {
+      throw new Error("User not authenticated");
+    }
+
     setIsLoading(true);
+    setError(null);
     setUploadProgress(0);
 
     try {
-      if (!userData?.id) {
-        throw new Error("User not authenticated");
-      }
-
-      // Validate file
-      if (!file.type.startsWith("image/")) {
-        throw new Error("Please upload an image file");
-      }
-
-      if (file.size > 5 * 1024 * 1024) {
-        throw new Error("Image size should be less than 5MB");
-      }
-
-      setUploadProgress(20);
-
-      // Generate unique filename
+      // Upload image to Supabase Storage
       const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const filePath = `uploads/${fileName}`;
+      const fileName = `${Math.random()}.${fileExt}`;
+      const filePath = `${userData.id}/${fileName}`;
 
-      // Upload to Supabase Storage with progress tracking
-      const { error: uploadError, data: uploadData } = await supabase.storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from('style-uploads')
         .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false
+          upsert: true,
+          onUploadProgress: (progress) => {
+            setUploadProgress((progress.loaded / progress.total) * 50); // First 50%
+          },
         });
 
       if (uploadError) throw uploadError;
-
-      setUploadProgress(40);
 
       // Get public URL
       const { data: { publicUrl } } = supabase.storage
         .from('style-uploads')
         .getPublicUrl(filePath);
 
-      setUploadProgress(60);
+      setUploadProgress(60); // Image uploaded
 
-      // Call analyze-style function with enhanced options
+      // Analyze image using Edge Function
       const { data: analysisData, error: analysisError } = await supabase.functions
         .invoke('analyze-style', {
           body: { 
@@ -71,30 +52,24 @@ export const useUploadHandler = () => {
             provider: 'openai',
             options: {
               detailedAnalysis: true,
-              confidenceScoring: true,
-              styleTagging: true,
-              colorAnalysis: true,
-              attributeWeighting: {
-                style: 0.6,
-                color: 0.2,
-                occasion: 0.2
-              }
+              generateEmbedding: true
             }
           }
         });
 
       if (analysisError) throw analysisError;
 
-      setUploadProgress(80);
+      setUploadProgress(80); // Analysis complete
 
-      // Store upload and analysis results with enhanced metadata
-      const { error: styleUploadError } = await supabase
+      // Store upload record with analysis results
+      const { error: dbError } = await supabase
         .from('style_uploads')
         .insert({
           user_id: userData.id,
           image_url: publicUrl,
-          upload_type: 'clothing',
-          embedding: analysisData.analysis.embedding,
+          upload_type: 'manual',
+          image_type: file.type,
+          embedding: analysisData.embedding,
           metadata: {
             style_tags: analysisData.analysis.style_tags,
             analysis_provider: 'openai',
@@ -102,58 +77,18 @@ export const useUploadHandler = () => {
             confidence_scores: analysisData.analysis.confidence_scores,
             style_attributes: analysisData.analysis.style_attributes,
             color_analysis: analysisData.analysis.color_analysis,
-            occasion_matches: analysisData.analysis.occasion_matches,
-            ...analysisData.analysis.metadata
           }
         });
 
-      if (styleUploadError) throw styleUploadError;
+      if (dbError) throw dbError;
 
-      setUploadProgress(90);
+      setUploadProgress(100); // Upload complete
 
-      // Trigger immediate product matching with enhanced parameters
-      await supabase.functions.invoke('match-products', {
-        body: { 
-          styleUploadId: analysisData.id,
-          minSimilarity: 0.7,
-          limit: 20,
-          options: {
-            weightedScoring: true,
-            styleTagMatching: true,
-            confidenceThreshold: 0.8,
-            priceRangeMatching: true,
-            colorMatching: true,
-            occasionMatching: true,
-            weights: {
-              style: 0.5,
-              color: 0.2,
-              occasion: 0.2,
-              price: 0.1
-            }
-          }
-        }
-      });
-
-      setUploadProgress(100);
-
-      toast({
-        title: "Upload successful",
-        description: "Your style has been analyzed and matches are being generated.",
-      });
-
-      // Redirect to matches page
-      window.location.href = '/matches';
+      return analysisData;
 
     } catch (err) {
-      console.error("Upload error:", err);
-      setError(err instanceof Error ? err.message : "Failed to upload image");
-      
-      toast({
-        title: "Upload failed",
-        description: err instanceof Error ? err.message : "Failed to upload image",
-        variant: "destructive",
-      });
-      
+      console.error('Upload error:', err);
+      setError(err instanceof Error ? err : new Error('Failed to upload image'));
       throw err;
     } finally {
       setIsLoading(false);

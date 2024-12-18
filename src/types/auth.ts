@@ -14,3 +14,9 @@ export interface UserData {
   upload_count?: number;
   subscription_tier?: string;
 }
+
+export interface AuthState {
+  user: UserData | null;
+  loading: boolean;
+  error: Error | null;
+}
