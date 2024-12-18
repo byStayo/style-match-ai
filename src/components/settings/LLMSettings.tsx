@@ -1,11 +1,16 @@
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Eye, Camera, ScanFace, Image, Save } from "lucide-react";
+import { Eye, Camera, ScanFace, Image, Save, Key } from "lucide-react";
+import { User } from "@supabase/supabase-js";
+
+interface LLMSettingsProps {
+  user: User | null;
+}
 
 interface VisionModel {
   id: string;
@@ -50,11 +55,11 @@ const VISION_MODELS: VisionModel[] = [
   }
 ];
 
-export const LLMSettings = () => {
+export const LLMSettings = ({ user }: LLMSettingsProps) => {
   const [selectedModel, setSelectedModel] = useState("gpt-4-vision");
+  const [apiKey, setApiKey] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
-  const { user, userData } = useAuth();
 
   const handleSaveSettings = async () => {
     if (!user) {
@@ -72,9 +77,9 @@ export const LLMSettings = () => {
         .from('profiles')
         .update({ 
           preferences: {
-            ...userData?.preferences,
             vision_model: selectedModel
-          }
+          },
+          openai_api_key: apiKey
         })
         .eq('id', user.id);
 
@@ -82,8 +87,9 @@ export const LLMSettings = () => {
 
       toast({
         title: "Settings Saved",
-        description: "Your vision model preferences have been updated successfully.",
+        description: "Your vision model preferences and API key have been updated successfully.",
       });
+      setApiKey("");
     } catch (error) {
       console.error('Error saving settings:', error);
       toast({
@@ -96,15 +102,17 @@ export const LLMSettings = () => {
     }
   };
 
+  const selectedModelData = VISION_MODELS.find(model => model.id === selectedModel);
+
   return (
-    <Card className="mb-6">
+    <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Eye className="w-5 h-5" />
           Vision Model Settings
         </CardTitle>
         <CardDescription>
-          Configure your preferred AI vision model for style analysis
+          Configure your preferred AI vision model and API keys for style analysis
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -136,10 +144,25 @@ export const LLMSettings = () => {
               ))}
             </SelectContent>
           </Select>
-          <p className="text-sm text-muted-foreground">
-            Choose the vision model that best fits your style analysis needs
-          </p>
         </div>
+
+        {selectedModelData?.requiresKey && (
+          <div className="space-y-4 pt-4 border-t">
+            <div className="flex items-center gap-2">
+              <Key className="w-4 h-4" />
+              <label className="text-sm font-medium">API Key for {selectedModelData.name}</label>
+            </div>
+            <Input
+              type="password"
+              placeholder={`Enter your ${selectedModelData.provider} API key`}
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+            />
+            <p className="text-sm text-muted-foreground">
+              Your API key is stored securely and used for style analysis with {selectedModelData.name}
+            </p>
+          </div>
+        )}
 
         <Button 
           onClick={handleSaveSettings} 
@@ -147,7 +170,7 @@ export const LLMSettings = () => {
           className="w-full gap-2"
         >
           <Save className="w-4 h-4" />
-          Save Preferences
+          Save Settings
         </Button>
       </CardContent>
     </Card>
