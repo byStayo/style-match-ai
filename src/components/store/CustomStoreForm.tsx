@@ -21,9 +21,11 @@ export const CustomStoreForm = () => {
   const [storeUrl, setStoreUrl] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasApiKey, setHasApiKey] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
     const checkApiKey = async () => {
+      console.log("Checking API key...");
       const { data: sessionData } = await supabase.auth.getSession();
       if (!sessionData?.session?.user) return;
 
@@ -34,6 +36,7 @@ export const CustomStoreForm = () => {
         .single();
 
       setHasApiKey(!!profile?.openai_api_key);
+      console.log("Has API key:", !!profile?.openai_api_key);
     };
 
     checkApiKey();
@@ -51,26 +54,33 @@ export const CustomStoreForm = () => {
 
     try {
       setIsSubmitting(true);
+      console.log("Adding custom store:", { storeName, storeUrl });
+      
       const { data: sessionData } = await supabase.auth.getSession();
       if (!sessionData?.session?.user) {
         throw new Error("Authentication required");
       }
 
-      const { error } = await supabase.from('stores').insert({
-        name: storeName,
-        url: storeUrl,
-        integration_type: "scrape" as const,
-        is_active: true,
-        owner_id: sessionData.session.user.id,
-        is_official: false
-      });
+      const { data: store, error: storeError } = await supabase
+        .from('stores')
+        .insert({
+          name: storeName,
+          url: storeUrl,
+          integration_type: "scrape",
+          is_active: true,
+          owner_id: sessionData.session.user.id,
+          is_official: false
+        })
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (storeError) throw storeError;
 
       // Trigger initial product fetch using the user's API key
       const { error: fetchError } = await supabase.functions.invoke('fetch-store-products', {
         body: { 
           storeName,
+          userId: sessionData.session.user.id,
           analysisProvider: 'openai',
           useCustomKey: true 
         }
@@ -79,12 +89,13 @@ export const CustomStoreForm = () => {
       if (fetchError) throw fetchError;
 
       toast({
-        title: "Store added",
-        description: "Custom store has been added successfully. Products will be fetched using your API key.",
+        title: "Store added successfully",
+        description: "Products will be fetched and analyzed using your API key.",
       });
 
       setStoreName("");
       setStoreUrl("");
+      setIsOpen(false);
     } catch (error) {
       console.error('Error adding custom store:', error);
       toast({
@@ -110,15 +121,15 @@ export const CustomStoreForm = () => {
   }
 
   return (
-    <Dialog>
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
         <Button
           variant="outline"
-          className="h-auto py-6 px-4 flex flex-col items-center gap-4 w-full md:w-auto animate-fade-in hover:bg-accent/5"
+          className="h-auto py-6 px-4 flex flex-col items-center gap-4 w-full animate-fade-in hover:bg-accent/5"
         >
           <Key className="w-12 h-12 text-primary" />
           <span className="text-lg font-medium">Add Custom Store</span>
-          <span className="text-sm text-muted-foreground">Using your own API key</span>
+          <span className="text-sm text-muted-foreground text-center">Using your own API key</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
@@ -128,7 +139,7 @@ export const CustomStoreForm = () => {
             Add a store using your own OpenAI API key. Analysis costs will be charged to your key.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4">
+        <div className="space-y-4 mt-4">
           <div className="space-y-2">
             <Label htmlFor="custom-store-name">Store Name</Label>
             <Input
@@ -147,6 +158,7 @@ export const CustomStoreForm = () => {
               onChange={(e) => setStoreUrl(e.target.value)}
               placeholder="https://example.com"
               className="w-full"
+              type="url"
             />
           </div>
           <Button 

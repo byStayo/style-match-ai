@@ -17,6 +17,7 @@ export const StoreSelector = () => {
   const { data: stores, isLoading } = useQuery({
     queryKey: ["supported-stores"],
     queryFn: async () => {
+      console.log("Fetching supported stores...");
       const { data, error } = await supabase
         .from('stores')
         .select('*')
@@ -27,12 +28,14 @@ export const StoreSelector = () => {
         console.error('Error fetching stores:', error);
         throw error;
       }
+      console.log("Fetched stores:", data);
       return data as SupportedStore[];
     },
   });
 
   const handleStoreSelect = async (storeId: string, storeName: string) => {
     try {
+      console.log(`Selecting store: ${storeName} (${storeId})`);
       const { data: sessionData } = await supabase.auth.getSession();
       if (!sessionData?.session?.user) {
         toast({
@@ -46,17 +49,21 @@ export const StoreSelector = () => {
       setIsProcessing(true);
 
       if (selectedStores.includes(storeId)) {
+        console.log(`Removing store: ${storeName}`);
         setSelectedStores(prev => prev.filter(id => id !== storeId));
-        await supabase
+        const { error: deleteError } = await supabase
           .from('user_store_preferences')
           .delete()
           .match({ 
             user_id: sessionData.session.user.id, 
             store_id: storeId 
           });
+
+        if (deleteError) throw deleteError;
       } else {
+        console.log(`Adding store: ${storeName}`);
         setSelectedStores(prev => [...prev, storeId]);
-        await supabase
+        const { error: upsertError } = await supabase
           .from('user_store_preferences')
           .upsert({ 
             user_id: sessionData.session.user.id, 
@@ -64,14 +71,23 @@ export const StoreSelector = () => {
             is_favorite: true 
           });
 
+        if (upsertError) throw upsertError;
+
+        // Trigger product fetch and analysis
         const { error: scrapeError } = await supabase.functions.invoke('scrape-store', {
-          body: { store: storeName }
+          body: { 
+            store: storeName,
+            userId: sessionData.session.user.id 
+          }
         });
 
-        if (scrapeError) throw scrapeError;
+        if (scrapeError) {
+          console.error('Error triggering store scrape:', scrapeError);
+          throw scrapeError;
+        }
 
         toast({
-          title: "Store products are being processed",
+          title: "Store connected successfully",
           description: "We'll analyze the products and find matches for your style.",
         });
       }
@@ -79,7 +95,7 @@ export const StoreSelector = () => {
       console.error('Error updating store preferences:', error);
       toast({
         title: "Error",
-        description: "Failed to update store preferences",
+        description: "Failed to update store preferences. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -90,16 +106,26 @@ export const StoreSelector = () => {
   // Load user's store preferences
   useEffect(() => {
     const loadUserPreferences = async () => {
+      console.log("Loading user preferences...");
       const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData?.session?.user) return;
+      if (!sessionData?.session?.user) {
+        console.log("No user session found");
+        return;
+      }
 
-      const { data: preferences } = await supabase
+      const { data: preferences, error } = await supabase
         .from('user_store_preferences')
         .select('store_id')
         .eq('user_id', sessionData.session.user.id)
         .eq('is_favorite', true);
 
+      if (error) {
+        console.error('Error loading preferences:', error);
+        return;
+      }
+
       if (preferences) {
+        console.log("Loaded preferences:", preferences);
         setSelectedStores(preferences.map(pref => pref.store_id));
       }
     };
@@ -122,9 +148,9 @@ export const StoreSelector = () => {
 
   return (
     <div className="space-y-6 p-4 max-w-7xl mx-auto">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div className="col-span-full lg:col-span-2">
-          <h2 className="text-2xl font-semibold mb-4 text-center md:text-left">Supported Stores</h2>
+      <div className="grid grid-cols-1 gap-6">
+        <div className="space-y-4">
+          <h2 className="text-2xl font-semibold text-center">Supported Stores</h2>
           <SupportedStoreList
             stores={stores || []}
             selectedStores={selectedStores}
@@ -132,8 +158,8 @@ export const StoreSelector = () => {
             isProcessing={isProcessing}
           />
         </div>
-        <div className="space-y-6">
-          <h2 className="text-2xl font-semibold mb-4 text-center md:text-left">Add More Stores</h2>
+        <div className="space-y-4">
+          <h2 className="text-2xl font-semibold text-center">Add More Stores</h2>
           <div className="grid grid-cols-1 gap-4">
             <CustomStoreForm />
             <StoreRequestForm />

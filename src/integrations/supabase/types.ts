@@ -257,6 +257,38 @@ export type Database = {
           },
         ]
       }
+      store_scrape_logs: {
+        Row: {
+          created_at: string | null
+          error_message: string | null
+          id: string
+          status: string
+          store_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          status: string
+          store_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          status?: string
+          store_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_scrape_logs_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stores: {
         Row: {
           api_key: string | null
