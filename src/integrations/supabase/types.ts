@@ -422,6 +422,33 @@ export type Database = {
           },
         ]
       }
+      system_health: {
+        Row: {
+          component: string
+          error_message: string | null
+          id: string
+          last_check: string | null
+          metadata: Json | null
+          status: string
+        }
+        Insert: {
+          component: string
+          error_message?: string | null
+          id?: string
+          last_check?: string | null
+          metadata?: Json | null
+          status: string
+        }
+        Update: {
+          component?: string
+          error_message?: string | null
+          id?: string
+          last_check?: string | null
+          metadata?: Json | null
+          status?: string
+        }
+        Relationships: []
+      }
       user_store_preferences: {
         Row: {
           created_at: string
@@ -479,6 +506,10 @@ export type Database = {
             }
             Returns: unknown
           }
+      check_system_health: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       halfvec_avg: {
         Args: {
           "": number[]
