@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Heart, ExternalLink, Info, Store } from "lucide-react";
+import { Heart, ExternalLink, Info, Store, Tag, Percent } from "lucide-react";
 import { ProductMatch } from "@/types/product";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -29,7 +29,7 @@ export const ProductCard = ({ item, onFavorite }: ProductCardProps) => {
       : 'bg-gray-500';
 
   return (
-    <Card className="group overflow-hidden">
+    <Card className="group overflow-hidden transition-all duration-300 hover:shadow-lg">
       <CardHeader className="p-0">
         <div className="relative aspect-square">
           <img
@@ -40,8 +40,9 @@ export const ProductCard = ({ item, onFavorite }: ProductCardProps) => {
           <HoverCard>
             <HoverCardTrigger asChild>
               <div 
-                className={`absolute top-2 right-2 ${matchColor} text-white px-3 py-1.5 rounded-full text-sm flex items-center gap-1.5 cursor-help`}
+                className={`absolute top-2 right-2 ${matchColor} text-white px-3 py-1.5 rounded-full text-sm flex items-center gap-1.5 cursor-help shadow-md`}
               >
+                <Percent className="h-4 w-4" />
                 <span className="font-medium">{matchPercentage}%</span>
                 <Info className="h-4 w-4" />
               </div>
@@ -49,7 +50,7 @@ export const ProductCard = ({ item, onFavorite }: ProductCardProps) => {
             <HoverCardContent className="w-80">
               <div className="space-y-2">
                 <h4 className="text-sm font-semibold">Match Details</h4>
-                <p className="text-sm">{item.match_explanation}</p>
+                <p className="text-sm text-muted-foreground">{item.match_explanation}</p>
               </div>
             </HoverCardContent>
           </HoverCard>
@@ -61,7 +62,7 @@ export const ProductCard = ({ item, onFavorite }: ProductCardProps) => {
               item.is_favorite 
                 ? 'text-primary bg-white hover:bg-white/90'
                 : 'text-white hover:text-primary bg-black/50 hover:bg-white'
-            }`}
+            } shadow-md`}
           >
             <Heart className="h-5 w-5" fill={item.is_favorite ? "currentColor" : "none"} />
           </Button>
@@ -71,17 +72,19 @@ export const ProductCard = ({ item, onFavorite }: ProductCardProps) => {
         <div className="space-y-3">
           <div className="flex items-start justify-between gap-2">
             <h3 className="text-lg font-semibold line-clamp-2">{item.product_title}</h3>
-            <span className="font-semibold whitespace-nowrap">${item.product_price.toFixed(2)}</span>
+            <span className="font-semibold whitespace-nowrap text-green-600">${item.product_price.toFixed(2)}</span>
           </div>
           
-          {/* Style Analysis Section */}
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground line-clamp-2">
               {item.match_explanation || "This item matches your style preferences"}
             </p>
             {item.style_tags && item.style_tags.length > 0 && (
               <div className="space-y-1.5">
-                <p className="text-xs text-muted-foreground font-medium">Style Elements:</p>
+                <div className="flex items-center gap-1 text-xs text-muted-foreground font-medium">
+                  <Tag className="h-3 w-3" />
+                  Style Elements:
+                </div>
                 <div className="flex flex-wrap gap-1">
                   {item.style_tags.map((tag) => (
                     <Badge key={tag} variant="secondary" className="text-xs">
@@ -94,14 +97,23 @@ export const ProductCard = ({ item, onFavorite }: ProductCardProps) => {
           </div>
 
           <div className="flex justify-between items-center pt-3 border-t">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="gap-2 text-muted-foreground hover:text-foreground"
-            >
-              <Store className="h-4 w-4" />
-              {item.store_name}
-            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="gap-2 text-muted-foreground hover:text-foreground"
+                  >
+                    <Store className="h-4 w-4" />
+                    {item.store_name}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>View more from {item.store_name}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <Button 
               variant="outline" 
               size="sm" 
