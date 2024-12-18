@@ -1,23 +1,20 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from '../_shared/types.ts';
-import { analyzeWithHuggingFace } from './huggingface.ts';
 import { analyzeWithOpenAI } from './openai.ts';
+import { analyzeWithHuggingFace } from './huggingface.ts';
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { imageUrl, visionModel, provider } = await req.json();
+    const { imageUrl, visionModel = 'gpt-4o-mini', provider = 'openai' } = await req.json();
     
     if (!imageUrl) {
       throw new Error('No image URL provided');
-    }
-
-    if (!provider) {
-      throw new Error('No provider specified');
     }
 
     console.log('Starting analysis:', {
@@ -35,10 +32,6 @@ serve(async (req) => {
         case 'openai':
           styleAnalysis = await analyzeWithOpenAI(imageUrl, visionModel);
           break;
-        case 'anthropic':
-          throw new Error('Claude vision analysis not yet implemented');
-        case 'google':
-          throw new Error('Gemini vision analysis not yet implemented');
         default:
           throw new Error('Invalid analysis provider');
       }
