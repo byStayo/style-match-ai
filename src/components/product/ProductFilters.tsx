@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Sheet,
   SheetContent,
@@ -9,7 +9,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
-import { SlidersHorizontal, X } from "lucide-react";
+import { SlidersHorizontal, X, Store } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface FilterOptions {
   stores: string[];
@@ -33,6 +34,26 @@ export const ProductFilters = ({
   const [selectedStores, setSelectedStores] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000]);
+  const [storeLogos, setStoreLogos] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const fetchStoreLogos = async () => {
+      const { data: stores } = await supabase
+        .from('stores')
+        .select('name, logo_url')
+        .in('name', availableStores);
+
+      if (stores) {
+        const logos = stores.reduce((acc, store) => ({
+          ...acc,
+          [store.name]: store.logo_url
+        }), {});
+        setStoreLogos(logos);
+      }
+    };
+
+    fetchStoreLogos();
+  }, [availableStores]);
 
   const handleStoreToggle = (store: string) => {
     const newStores = selectedStores.includes(store)
@@ -128,15 +149,21 @@ export const ProductFilters = ({
           </div>
 
           <div className="space-y-4">
-            <h3 className="text-sm font-medium">Stores</h3>
+            <h3 className="text-sm font-medium flex items-center gap-2">
+              <Store className="w-4 h-4" />
+              Stores
+            </h3>
             <div className="flex flex-wrap gap-2">
               {availableStores.map((store) => (
                 <Badge
                   key={store}
                   variant={selectedStores.includes(store) ? "default" : "outline"}
-                  className="cursor-pointer"
+                  className="cursor-pointer flex items-center gap-2"
                   onClick={() => handleStoreToggle(store)}
                 >
+                  {storeLogos[store] && (
+                    <img src={storeLogos[store]} alt={store} className="w-4 h-4 object-contain" />
+                  )}
                   {store}
                   {selectedStores.includes(store) && (
                     <X className="ml-1 h-3 w-3" />

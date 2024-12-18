@@ -58,31 +58,11 @@ export const useStyleMatches = () => {
       // Find new matches
       const newMatches = sortedMatches.filter(match => !previousMatches.has(match.id));
 
-      // Send email notification if there are new matches
       if (newMatches.length > 0) {
-        console.log('New matches found:', newMatches.length);
-        
-        const { error: notificationError } = await supabase.functions
-          .invoke('send-match-notification', {
-            body: {
-              userId: session.session.user.id,
-              matches: newMatches.map(match => ({
-                productTitle: match.product_title,
-                storeName: match.store_name,
-                matchScore: match.match_score,
-                productUrl: match.product_url,
-              }))
-            }
-          });
-
-        if (notificationError) {
-          console.error('Error sending notification:', notificationError);
-          toast({
-            title: "Notification Error",
-            description: "Failed to send email notification for new matches.",
-            variant: "destructive",
-          });
-        }
+        toast({
+          title: "New Matches Found!",
+          description: `Found ${newMatches.length} new items matching your style.`,
+        });
       }
 
     } catch (error) {
@@ -101,8 +81,10 @@ export const useStyleMatches = () => {
   const sortMatches = (matches: ProductMatch[], sortBy: SortOption): ProductMatch[] => {
     return [...matches].sort((a, b) => {
       switch (sortBy) {
-        case 'price':
+        case 'price-asc':
           return a.product_price - b.product_price;
+        case 'price-desc':
+          return b.product_price - a.product_price;
         case 'date':
           return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
         case 'match':

@@ -1,6 +1,7 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ArrowDownAZ, ArrowUpDown, Sparkles, DollarSign } from "lucide-react";
 
-export type SortOption = "match" | "price" | "date";
+export type SortOption = "match" | "price-asc" | "price-desc" | "date";
 
 interface ProductSortProps {
   sortBy: SortOption;
@@ -16,9 +17,22 @@ export const ProductSort = ({ sortBy, onSort }: ProductSortProps) => {
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="match">Best Match</SelectItem>
-          <SelectItem value="price">Price: Low to High</SelectItem>
-          <SelectItem value="date">Most Recent</SelectItem>
+          <SelectItem value="match" className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4" />
+            Best Match
+          </SelectItem>
+          <SelectItem value="price-asc" className="flex items-center gap-2">
+            <DollarSign className="w-4 h-4" />
+            Price: Low to High
+          </SelectItem>
+          <SelectItem value="price-desc" className="flex items-center gap-2">
+            <DollarSign className="w-4 h-4" />
+            Price: High to Low
+          </SelectItem>
+          <SelectItem value="date" className="flex items-center gap-2">
+            <ArrowDownAZ className="w-4 h-4" />
+            Most Recent
+          </SelectItem>
         </SelectContent>
       </Select>
     </div>
