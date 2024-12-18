@@ -8,6 +8,10 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const STYLE_MATCH_WEIGHT = 0.6;
+const PRICE_MATCH_WEIGHT = 0.2;
+const TAG_MATCH_WEIGHT = 0.2;
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -27,7 +31,7 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Get the style upload embedding
+    // Get user's style upload
     const { data: styleUpload, error: uploadError } = await supabase
       .from('style_uploads')
       .select('embedding, metadata, user_id')
@@ -38,6 +42,15 @@ serve(async (req) => {
       console.error('Style upload error:', uploadError);
       throw new Error('Style upload not found or has no embedding');
     }
+
+    // Get user's price preferences
+    const { data: userProfile } = await supabase
+      .from('profiles')
+      .select('preferences')
+      .eq('id', styleUpload.user_id)
+      .single();
+
+    const pricePreferences = userProfile?.preferences?.price_range || { min: 0, max: 1000 };
 
     // Get products with embeddings
     const { data: products, error: productsError } = await supabase
@@ -55,41 +68,51 @@ serve(async (req) => {
     // Calculate similarity scores and filter matches
     const matches = products
       .map(product => {
-        const similarity = computeCosineSimilarity(
+        // Calculate embedding similarity
+        const embeddingSimilarity = computeCosineSimilarity(
           styleUpload.embedding,
           product.style_embedding
         );
 
-        const styleMatch = calculateStyleMatch(
+        // Calculate style tag match
+        const styleTagMatch = calculateStyleTagMatch(
           product.style_tags,
           styleUpload.metadata?.style_tags || []
         );
 
+        // Calculate price match
         const priceMatch = calculatePriceMatch(
           product.product_price,
-          styleUpload.metadata?.price_range
+          pricePreferences
         );
 
-        const confidenceScore = (similarity + styleMatch + priceMatch) / 3;
+        // Calculate weighted score
+        const weightedScore = (
+          embeddingSimilarity * STYLE_MATCH_WEIGHT +
+          styleTagMatch * TAG_MATCH_WEIGHT +
+          priceMatch * PRICE_MATCH_WEIGHT
+        );
 
         return {
           ...product,
-          similarity,
+          similarity: weightedScore,
           confidence_scores: {
-            style_match: styleMatch,
-            price_match: priceMatch,
-            similarity
-          },
-          match_score: confidenceScore
+            style_match: embeddingSimilarity,
+            tag_match: styleTagMatch,
+            price_match: priceMatch
+          }
         };
       })
-      .filter(match => match.match_score >= minSimilarity)
-      .sort((a, b) => b.match_score - a.match_score)
+      .filter(match => 
+        match.similarity >= minSimilarity &&
+        (storeFilter.length === 0 || storeFilter.includes(match.store_name))
+      )
+      .sort((a, b) => b.similarity - a.similarity)
       .slice(0, limit);
 
     console.log(`Found ${matches.length} matches above similarity threshold`);
 
-    // Store matches in product_matches table
+    // Store matches
     const matchInserts = matches.map(match => ({
       user_id: styleUpload.user_id,
       product_url: match.product_url,
@@ -97,7 +120,7 @@ serve(async (req) => {
       product_title: match.product_title,
       product_price: match.product_price,
       store_name: match.store_name,
-      match_score: match.match_score,
+      match_score: match.similarity,
       match_explanation: generateMatchExplanation(match)
     }));
 
@@ -123,36 +146,48 @@ serve(async (req) => {
   }
 });
 
-function calculateStyleMatch(productTags: string[], userTags: string[]): number {
+function calculateStyleTagMatch(productTags: string[], userTags: string[]): number {
   if (!productTags?.length || !userTags?.length) return 0.5;
   const commonTags = productTags.filter(tag => userTags.includes(tag));
   return commonTags.length / Math.max(productTags.length, userTags.length);
 }
 
-function calculatePriceMatch(price: number, priceRange?: { min: number; max: number }): number {
-  if (!priceRange || !price) return 1.0;
-  if (price >= priceRange.min && price <= priceRange.max) return 1.0;
+function calculatePriceMatch(price: number, prefs: { min: number; max: number }): number {
+  if (!price || !prefs) return 1.0;
+  if (price >= prefs.min && price <= prefs.max) return 1.0;
   
-  const midPoint = (priceRange.min + priceRange.max) / 2;
-  const maxDiff = priceRange.max - priceRange.min;
+  const midPoint = (prefs.min + prefs.max) / 2;
+  const maxDiff = prefs.max - prefs.min;
   const actualDiff = Math.abs(price - midPoint);
   
   return Math.max(0, 1 - (actualDiff / maxDiff));
 }
 
 function generateMatchExplanation(match: any): string {
-  const confidence = Math.round(match.match_score * 100);
-  const styleMatch = Math.round(match.confidence_scores.style_match * 100);
+  const scores = match.confidence_scores;
+  const styleMatch = Math.round(scores.style_match * 100);
+  const priceMatch = Math.round(scores.price_match * 100);
+  const tagMatch = Math.round(scores.tag_match * 100);
   
-  let explanation = `This ${match.product_title} matches your style with ${confidence}% confidence. `;
+  let explanation = `This item matches your style with ${styleMatch}% confidence. `;
   
   if (styleMatch > 80) {
-    explanation += `It strongly matches your style preferences (${styleMatch}% style match).`;
+    explanation += `It's a perfect match for your style preferences! `;
   } else if (styleMatch > 60) {
-    explanation += `It has several style elements that align with your preferences (${styleMatch}% style match).`;
-  } else {
-    explanation += `It has some style elements that might interest you (${styleMatch}% style match).`;
+    explanation += `It aligns well with your style preferences. `;
   }
-
+  
+  if (priceMatch > 90) {
+    explanation += `The price is right within your preferred range. `;
+  } else if (priceMatch > 70) {
+    explanation += `The price is close to your preferred range. `;
+  }
+  
+  if (tagMatch > 80) {
+    explanation += `It matches your preferred style categories perfectly.`;
+  } else if (tagMatch > 60) {
+    explanation += `It shares several style categories with your preferences.`;
+  }
+  
   return explanation;
 }

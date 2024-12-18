@@ -1,11 +1,16 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
+import { analyzeProductWithOpenAI } from './analysis.ts';
+import type { Product } from './types.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+const BATCH_SIZE = 10;
+const MIN_CONFIDENCE_SCORE = 0.7;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -18,6 +23,8 @@ serve(async (req) => {
     if (!storeId) {
       throw new Error('Store ID is required');
     }
+
+    console.log('Starting product indexing for store:', storeId);
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -35,39 +42,44 @@ serve(async (req) => {
       throw new Error('Store not found');
     }
 
-    console.log('Starting product indexing for store:', store.name);
+    // Log indexing start
+    await supabase
+      .from('store_scrape_logs')
+      .insert({
+        store_id: storeId,
+        status: 'processing',
+        metadata: { start_time: new Date().toISOString() }
+      });
 
-    // Fetch products using the appropriate method
+    // Fetch products
     const { data: products, error: fetchError } = await supabase.functions
       .invoke('fetch-store-products', {
-        body: { 
-          storeName: store.name,
-          analysisProvider: 'openai'
-        }
+        body: { storeName: store.name }
       });
 
     if (fetchError) throw fetchError;
 
     console.log(`Fetched ${products?.length || 0} products`);
 
-    // Process products in batches
-    const batchSize = 10;
-    const batches = [];
-    for (let i = 0; i < products.length; i += batchSize) {
-      batches.push(products.slice(i, i + batchSize));
-    }
-
     let processedCount = 0;
-    for (const batch of batches) {
-      const batchPromises = batch.map(async (product: any) => {
-        try {
-          // Generate embeddings for product
-          const { data: analysis, error: analysisError } = await supabase.functions
-            .invoke('analyze-product', {
-              body: { imageUrl: product.image }
-            });
+    let successCount = 0;
+    let errorCount = 0;
+    const errors: string[] = [];
 
-          if (analysisError) throw analysisError;
+    // Process products in batches
+    for (let i = 0; i < products.length; i += BATCH_SIZE) {
+      const batch = products.slice(i, i + BATCH_SIZE);
+      
+      await Promise.all(batch.map(async (product: Product) => {
+        try {
+          console.log(`Processing product ${processedCount + 1}/${products.length}: ${product.title}`);
+
+          // Generate embeddings and analyze with OpenAI
+          const analysis = await analyzeProductWithOpenAI(product.image);
+          
+          if (!analysis.embedding || analysis.confidence < MIN_CONFIDENCE_SCORE) {
+            throw new Error(`Low confidence analysis for product: ${product.title}`);
+          }
 
           // Store product with embeddings
           const { error: insertError } = await supabase
@@ -79,41 +91,63 @@ serve(async (req) => {
               product_title: product.title,
               product_price: product.price,
               product_description: product.description,
-              style_tags: analysis.style_tags,
-              style_embedding: analysis.embedding
+              style_tags: analysis.styleTags,
+              style_embedding: analysis.embedding,
+              created_at: new Date().toISOString()
             });
 
           if (insertError) throw insertError;
 
-          processedCount++;
-          console.log(`Processed ${processedCount}/${products.length} products`);
+          successCount++;
         } catch (error) {
-          console.error('Error processing product:', error);
+          console.error(`Error processing product: ${error.message}`);
+          errorCount++;
+          errors.push(error.message);
+        } finally {
+          processedCount++;
         }
-      });
 
-      await Promise.all(batchPromises);
+        // Update progress every 10 products
+        if (processedCount % 10 === 0) {
+          await supabase
+            .from('store_scrape_logs')
+            .insert({
+              store_id: storeId,
+              status: 'processing',
+              metadata: {
+                progress: (processedCount / products.length) * 100,
+                processed: processedCount,
+                success: successCount,
+                errors: errorCount
+              }
+            });
+        }
+      }));
     }
 
     // Log completion
-    const { error: logError } = await supabase
+    await supabase
       .from('store_scrape_logs')
       .insert({
         store_id: storeId,
         status: 'completed',
         metadata: {
-          products_processed: processedCount,
-          total_products: products.length
+          total_products: products.length,
+          processed: processedCount,
+          success: successCount,
+          errors: errorCount,
+          error_messages: errors,
+          completion_time: new Date().toISOString()
         }
       });
 
-    if (logError) console.error('Error logging completion:', logError);
-
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         processed: processedCount,
-        total: products.length 
+        successful: successCount,
+        failed: errorCount,
+        errors: errors
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
