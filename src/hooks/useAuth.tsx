@@ -5,17 +5,19 @@ import { Database } from "@/integrations/supabase/types";
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
 
+export interface UserPreferences {
+  colors?: string[];
+  styles?: string[];
+  sizes?: string[];
+  [key: string]: any;
+}
+
 export interface UserData {
   id: string;
   email?: string | null;
   displayName?: string | null;
   photoURL?: string | null;
-  preferences: {
-    colors?: string[];
-    styles?: string[];
-    sizes?: string[];
-    [key: string]: any;
-  };
+  preferences: UserPreferences;
   uploads: string[];
   favorites: string[];
   subscription_status?: string;
@@ -69,6 +71,7 @@ export const useAuth = () => {
 
   const fetchUserData = async (userId: string) => {
     try {
+      console.log("Fetching user data for:", userId);
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -78,12 +81,15 @@ export const useAuth = () => {
       if (error) throw error;
 
       if (data) {
+        const preferences = data.preferences as UserPreferences || {};
+        console.log("Loaded user preferences:", preferences);
+
         setUserData({
           id: userId,
           email: user?.email,
           displayName: data.full_name,
           photoURL: data.avatar_url,
-          preferences: data.preferences || {},
+          preferences: preferences,
           uploads: [],  // We'll fetch these separately if needed
           favorites: [], // We'll fetch these separately if needed
           connectedAccounts: {}, // We'll fetch these separately if needed
