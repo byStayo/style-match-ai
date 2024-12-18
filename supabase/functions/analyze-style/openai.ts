@@ -20,13 +20,14 @@ export async function analyzeWithOpenAI(imageUrl: string): Promise<StyleAnalysis
       messages: [
         {
           role: 'system',
-          content: `You are a fashion style analyzer. Analyze the image and provide:
-            1. Style categories (e.g., casual, formal, streetwear)
-            2. Key features (patterns, materials, fit)
-            3. Color palette
-            4. Occasion suitability
-            5. Style attributes (e.g., minimalist, bohemian, preppy)
-            Return as a JSON object with these fields.`
+          content: `You are a fashion style analyzer. Analyze the image and provide a JSON object with:
+            {
+              "style_categories": ["casual", "formal", etc],
+              "key_features": ["patterns", "materials", "fit"],
+              "color_palette": ["colors"],
+              "occasion_suitability": ["work", "casual", etc],
+              "style_attributes": ["minimalist", "bohemian", etc]
+            }`
         },
         {
           role: 'user',
@@ -47,18 +48,29 @@ export async function analyzeWithOpenAI(imageUrl: string): Promise<StyleAnalysis
   });
 
   if (!visionResponse.ok) {
+    console.error('OpenAI Vision API error:', await visionResponse.text());
     throw new Error(`OpenAI Vision API error: ${visionResponse.statusText}`);
   }
 
   const visionData = await visionResponse.json();
-  console.log('OpenAI Vision response:', visionData);
+  console.log('OpenAI Vision raw response:', visionData);
+
+  if (!visionData.choices?.[0]?.message?.content) {
+    throw new Error('Invalid response format from OpenAI Vision');
+  }
 
   let parsedAnalysis;
   try {
     const content = visionData.choices[0].message.content.trim();
     parsedAnalysis = JSON.parse(content);
+    
+    // Validate required fields
+    if (!parsedAnalysis.style_categories || !Array.isArray(parsedAnalysis.style_categories)) {
+      throw new Error('Missing or invalid style_categories in analysis');
+    }
   } catch (parseError) {
     console.error('Failed to parse OpenAI Vision response:', parseError);
+    console.error('Raw content:', visionData.choices[0].message.content);
     throw new Error('Failed to parse style analysis');
   }
 
@@ -83,27 +95,28 @@ export async function analyzeWithOpenAI(imageUrl: string): Promise<StyleAnalysis
     }),
   });
 
+  if (!embeddingResponse.ok) {
+    console.error('OpenAI Embedding API error:', await embeddingResponse.text());
+    throw new Error('Failed to generate embedding');
+  }
+
   const embeddingData = await embeddingResponse.json();
-  const embedding = embeddingData.data[0].embedding;
+  
+  if (!embeddingData.data?.[0]?.embedding) {
+    throw new Error('Invalid embedding response format');
+  }
 
   return {
     style_tags: [
       ...parsedAnalysis.style_categories,
       ...parsedAnalysis.style_attributes
     ],
-    embedding,
-    confidence_scores: {
-      style_match: 0.95,
-      color_match: 0.90,
-      occasion_match: 0.85
-    },
+    embedding: embeddingData.data[0].embedding,
+    confidence_scores: null,
     metadata: {
       provider: 'openai',
       model: 'gpt-4o',
-      features: parsedAnalysis.key_features,
-      colors: parsedAnalysis.color_palette,
-      occasions: parsedAnalysis.occasion_suitability,
-      analysis_version: '2.0'
+      description: description
     }
   };
 }
