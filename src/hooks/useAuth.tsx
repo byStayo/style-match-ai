@@ -2,9 +2,40 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { Database } from "@/integrations/supabase/types";
-import type { UserData } from "@/types/auth";
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
+
+export interface UserData {
+  id: string;
+  email?: string | null;
+  displayName?: string | null;
+  photoURL?: string | null;
+  preferences: {
+    colors?: string[];
+    styles?: string[];
+    sizes?: string[];
+    [key: string]: any;
+  };
+  uploads: string[];
+  favorites: string[];
+  subscription_status?: string;
+  subscription_tier?: string;
+  openai_api_key?: string;
+  connectedAccounts?: {
+    instagram?: {
+      connected: boolean;
+      lastSync: string;
+    };
+    facebook?: {
+      connected: boolean;
+      lastSync: string;
+    };
+    tiktok?: {
+      connected: boolean;
+      lastSync: string;
+    };
+  };
+}
 
 export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -52,7 +83,7 @@ export const useAuth = () => {
           email: user?.email,
           displayName: data.full_name,
           photoURL: data.avatar_url,
-          preferences: data.preferences as UserData['preferences'] || {},
+          preferences: data.preferences || {},
           uploads: [],  // We'll fetch these separately if needed
           favorites: [], // We'll fetch these separately if needed
           connectedAccounts: {}, // We'll fetch these separately if needed
