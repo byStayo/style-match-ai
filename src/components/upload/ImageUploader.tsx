@@ -26,7 +26,23 @@ export const ImageUploader = () => {
     try {
       const objectUrl = URL.createObjectURL(file);
       setPreview(objectUrl);
+      
+      // Show upload starting toast
+      toast({
+        title: "Starting upload",
+        description: "Your image is being uploaded and analyzed...",
+      });
+
       await handleFileUpload(file);
+      
+      // Show success toast
+      toast({
+        title: "Upload successful!",
+        description: "Your image has been analyzed. Redirecting to matches...",
+        variant: "success",
+      });
+
+      // Navigate to matches page after successful upload
       navigate("/matches");
     } catch (error) {
       console.error("Upload error:", error);
@@ -39,12 +55,12 @@ export const ImageUploader = () => {
   }, [handleFileUpload, navigate, toast]);
 
   return (
-    <Card className="w-full max-w-xl mx-auto mt-8 overflow-hidden bg-gradient-to-br from-background to-accent/10 border-2 hover:border-accent/20 transition-all duration-300">
+    <Card className="w-full max-w-xl mx-auto overflow-hidden bg-gradient-to-br from-background to-accent/10 border-2 hover:border-accent/20 transition-all duration-300">
       <div className="p-8 space-y-8">
         <AnalysisProviderSelect />
 
         <div 
-          className="relative border-2 border-dashed border-accent/30 rounded-xl p-8 text-center hover:border-accent/50 transition-all duration-300 cursor-pointer bg-background/50 backdrop-blur-sm"
+          className="relative rounded-xl p-4 text-center transition-all duration-300 cursor-pointer bg-background/50 backdrop-blur-sm"
           role="button"
           tabIndex={0}
         >
