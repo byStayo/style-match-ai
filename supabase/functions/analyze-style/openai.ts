@@ -42,7 +42,8 @@ export async function analyzeWithOpenAI(imageUrl: string, model = 'gpt-4-vision-
     });
 
     if (!visionResponse.ok) {
-      console.error('OpenAI Vision API error:', await visionResponse.text());
+      const errorText = await visionResponse.text();
+      console.error('OpenAI Vision API error:', errorText);
       throw new Error(`OpenAI Vision API error: ${visionResponse.statusText}`);
     }
 
