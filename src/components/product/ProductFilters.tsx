@@ -7,12 +7,14 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
-import { SlidersHorizontal, X, Store, Sparkles, Tag, Percent } from "lucide-react";
+import { SlidersHorizontal, Sparkles, Percent } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { StoreFilter } from "./filters/StoreFilter";
+import { StyleCategoryFilter } from "./filters/StyleCategoryFilter";
+import { PriceRangeFilter } from "./filters/PriceRangeFilter";
 
 export interface FilterOptions {
   stores: string[];
@@ -77,10 +79,9 @@ export const ProductFilters = ({
     updateFilters(selectedStores, newCategories, priceRange, matchScoreThreshold, onlyHighConfidence);
   };
 
-  const handlePriceChange = (value: number[]) => {
-    const range: [number, number] = [value[0], value[1]];
-    setPriceRange(range);
-    updateFilters(selectedStores, selectedCategories, range, matchScoreThreshold, onlyHighConfidence);
+  const handlePriceChange = (value: [number, number]) => {
+    setPriceRange(value);
+    updateFilters(selectedStores, selectedCategories, value, matchScoreThreshold, onlyHighConfidence);
   };
 
   const handleMatchScoreChange = (value: number[]) => {
@@ -190,71 +191,23 @@ export const ProductFilters = ({
             </div>
           </div>
 
-          <div className="space-y-4">
-            <h3 className="text-sm font-medium flex items-center gap-2">
-              <Store className="w-4 h-4" />
-              Stores
-            </h3>
-            <div className="flex flex-wrap gap-2">
-              {availableStores.map((store) => (
-                <Badge
-                  key={store}
-                  variant={selectedStores.includes(store) ? "default" : "outline"}
-                  className="cursor-pointer flex items-center gap-2"
-                  onClick={() => handleStoreToggle(store)}
-                >
-                  {storeLogos[store] && (
-                    <img src={storeLogos[store]} alt={store} className="w-4 h-4 object-contain" />
-                  )}
-                  {store}
-                  {selectedStores.includes(store) && (
-                    <X className="ml-1 h-3 w-3" />
-                  )}
-                </Badge>
-              ))}
-            </div>
-          </div>
+          <StoreFilter
+            availableStores={availableStores}
+            selectedStores={selectedStores}
+            storeLogos={storeLogos}
+            onStoreToggle={handleStoreToggle}
+          />
 
-          <div className="space-y-4">
-            <h3 className="text-sm font-medium flex items-center gap-2">
-              <Tag className="w-4 h-4" />
-              Style Categories
-            </h3>
-            <div className="flex flex-wrap gap-2">
-              {availableCategories.map((category) => (
-                <Badge
-                  key={category}
-                  variant={selectedCategories.includes(category) ? "default" : "outline"}
-                  className="cursor-pointer"
-                  onClick={() => handleCategoryToggle(category)}
-                >
-                  {category}
-                  {selectedCategories.includes(category) && (
-                    <X className="ml-1 h-3 w-3" />
-                  )}
-                </Badge>
-              ))}
-            </div>
-          </div>
+          <StyleCategoryFilter
+            availableCategories={availableCategories}
+            selectedCategories={selectedCategories}
+            onCategoryToggle={handleCategoryToggle}
+          />
 
-          <div className="space-y-4">
-            <h3 className="text-sm font-medium flex items-center gap-2">
-              <DollarSign className="w-4 h-4" />
-              Price Range
-            </h3>
-            <Slider
-              min={0}
-              max={1000}
-              step={10}
-              value={[priceRange[0], priceRange[1]]}
-              onValueChange={handlePriceChange}
-              className="w-full"
-            />
-            <div className="flex items-center justify-between text-sm text-muted-foreground">
-              <span>${priceRange[0]}</span>
-              <span>${priceRange[1]}</span>
-            </div>
-          </div>
+          <PriceRangeFilter
+            priceRange={priceRange}
+            onPriceChange={handlePriceChange}
+          />
         </div>
       </SheetContent>
     </Sheet>
