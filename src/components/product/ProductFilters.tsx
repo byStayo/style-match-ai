@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { StoreFilter } from "./filters/StoreFilter";
 import { StyleCategoryFilter } from "./filters/StyleCategoryFilter";
 import { PriceRangeFilter } from "./filters/PriceRangeFilter";
+import { Slider } from "@/components/ui/slider";
 
 export interface FilterOptions {
   stores: string[];
