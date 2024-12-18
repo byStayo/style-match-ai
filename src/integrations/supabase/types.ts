@@ -316,6 +316,50 @@ export type Database = {
           },
         ]
       }
+      store_scraper_configs: {
+        Row: {
+          batch_size: number | null
+          created_at: string | null
+          id: string
+          last_successful_scrape: string | null
+          max_retries: number | null
+          rate_limit_delay: number | null
+          store_id: string
+          timeout: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          batch_size?: number | null
+          created_at?: string | null
+          id?: string
+          last_successful_scrape?: string | null
+          max_retries?: number | null
+          rate_limit_delay?: number | null
+          store_id: string
+          timeout?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          batch_size?: number | null
+          created_at?: string | null
+          id?: string
+          last_successful_scrape?: string | null
+          max_retries?: number | null
+          rate_limit_delay?: number | null
+          store_id?: string
+          timeout?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_scraper_configs_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stores: {
         Row: {
           api_key: string | null
