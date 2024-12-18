@@ -55,7 +55,7 @@ export const useUploadHandler = () => {
         .invoke('analyze-style', {
           body: { 
             imageUrl: publicUrl,
-            visionModel: 'gpt-4-vision-preview',
+            visionModel: 'gpt-4o-mini',
             provider: 'openai',
             options: {
               detailedAnalysis: true,
@@ -80,7 +80,7 @@ export const useUploadHandler = () => {
           metadata: {
             style_tags: analysisData.analysis.style_tags,
             analysis_provider: 'openai',
-            vision_model: 'gpt-4-vision-preview',
+            vision_model: 'gpt-4o-mini',
             confidence_scores: analysisData.analysis.confidence_scores,
             style_attributes: analysisData.analysis.style_attributes,
             color_analysis: analysisData.analysis.color_analysis,
