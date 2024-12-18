@@ -1,14 +1,15 @@
+import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Instagram, Facebook, Video } from "lucide-react";
-import { useState } from "react";
+import { Instagram, Facebook, Video, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
 export const SocialMediaConnect = () => {
   const [isLoading, setIsLoading] = useState<string | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const { toast } = useToast();
 
-  const handleConnect = async (platform: "instagram" | "facebook" | "tiktok") => {
+  const handleConnect = useCallback(async (platform: "instagram" | "facebook" | "tiktok") => {
     const { data: { session } } = await supabase.auth.getSession();
     
     if (!session) {
@@ -44,9 +45,9 @@ export const SocialMediaConnect = () => {
     } finally {
       setIsLoading(null);
     }
-  };
+  }, [toast]);
 
-  const handleExtractStyle = async () => {
+  const handleExtractStyle = useCallback(async () => {
     const handle = prompt("Enter an Instagram handle to analyze:");
     if (!handle) return;
 
@@ -60,7 +61,7 @@ export const SocialMediaConnect = () => {
       return;
     }
 
-    setIsLoading('extract');
+    setIsAnalyzing(true);
     try {
       const { error } = await supabase.functions.invoke('social-extract', {
         body: { 
@@ -86,20 +87,24 @@ export const SocialMediaConnect = () => {
         variant: "destructive",
       });
     } finally {
-      setIsLoading(null);
+      setIsAnalyzing(false);
     }
-  };
+  }, [toast]);
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Button
           variant="outline"
           onClick={() => handleConnect("instagram")}
           disabled={!!isLoading}
-          className="w-full"
+          className="w-full h-auto py-6 px-4"
         >
-          <Instagram className="mr-2 h-4 w-4" />
+          {isLoading === "instagram" ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Instagram className="mr-2 h-4 w-4" />
+          )}
           {isLoading === "instagram" ? "Connecting..." : "Connect Instagram"}
         </Button>
         
@@ -107,9 +112,13 @@ export const SocialMediaConnect = () => {
           variant="outline"
           onClick={() => handleConnect("facebook")}
           disabled={!!isLoading}
-          className="w-full"
+          className="w-full h-auto py-6 px-4"
         >
-          <Facebook className="mr-2 h-4 w-4" />
+          {isLoading === "facebook" ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Facebook className="mr-2 h-4 w-4" />
+          )}
           {isLoading === "facebook" ? "Connecting..." : "Connect Facebook"}
         </Button>
         
@@ -117,9 +126,13 @@ export const SocialMediaConnect = () => {
           variant="outline"
           onClick={() => handleConnect("tiktok")}
           disabled={!!isLoading}
-          className="w-full"
+          className="w-full h-auto py-6 px-4"
         >
-          <Video className="mr-2 h-4 w-4" />
+          {isLoading === "tiktok" ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Video className="mr-2 h-4 w-4" />
+          )}
           {isLoading === "tiktok" ? "Connecting..." : "Connect TikTok"}
         </Button>
       </div>
@@ -137,9 +150,16 @@ export const SocialMediaConnect = () => {
         variant="secondary"
         onClick={handleExtractStyle}
         className="w-full"
-        disabled={!!isLoading}
+        disabled={isAnalyzing}
       >
-        {isLoading === 'extract' ? 'Analyzing...' : 'Analyze Social Profile'}
+        {isAnalyzing ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Analyzing...
+          </>
+        ) : (
+          'Analyze Social Profile'
+        )}
       </Button>
     </div>
   );

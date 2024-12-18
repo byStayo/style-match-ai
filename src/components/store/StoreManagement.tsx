@@ -1,124 +1,134 @@
-import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
-import { Store, RefreshCw } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
-import { Button } from "@/components/ui/button";
-
-interface StorePreference {
-  id: string;
-  name: string;
-  url: string;
-  logo_url: string | null;
-  is_active: boolean;
-}
+import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Loader2, Store } from 'lucide-react';
+import { SupportedStoreList } from './SupportedStoreList';
+import { CustomStoreForm } from './CustomStoreForm';
+import { StoreRequestForm } from './StoreRequestForm';
 
 export const StoreManagement = () => {
-  const [stores, setStores] = useState<StorePreference[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
-  const { user } = useAuth();
 
-  const toggleStore = async (storeId: string, isActive: boolean) => {
-    if (!user) return;
+  const { data: stores, isLoading, error } = useQuery({
+    queryKey: ['stores'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('stores')
+        .select('*')
+        .eq('is_active', true)
+        .order('name');
 
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  const handleStoreSelect = async (storeId: string, storeName: string) => {
     try {
-      const { error } = await supabase
-        .from('user_store_preferences')
-        .upsert({
-          user_id: user.id,
-          store_id: storeId,
-          is_favorite: isActive,
+      setIsProcessing(true);
+      
+      // Check if store products need updating
+      const { data: lastScrape } = await supabase
+        .from('store_scrape_logs')
+        .select('*')
+        .eq('store_id', storeId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      const needsUpdate = !lastScrape || 
+        new Date(lastScrape.created_at).getTime() < Date.now() - 24 * 60 * 60 * 1000;
+
+      if (needsUpdate) {
+        // Trigger store product fetch
+        const { error: fetchError } = await supabase.functions.invoke('fetch-store-products', {
+          body: { storeName }
         });
 
-      if (error) throw error;
+        if (fetchError) throw fetchError;
 
-      setStores(stores.map(store => 
-        store.id === storeId ? { ...store, is_active: isActive } : store
-      ));
+        toast({
+          title: 'Store products updating',
+          description: 'We\'re fetching the latest products. This may take a few minutes.',
+        });
+      }
+
+      // Save user preference
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (sessionData?.session?.user) {
+        const { error: prefError } = await supabase
+          .from('user_store_preferences')
+          .upsert({
+            user_id: sessionData.session.user.id,
+            store_id: storeId,
+            is_favorite: true
+          });
+
+        if (prefError) throw prefError;
+      }
 
       toast({
-        title: isActive ? "Store Activated" : "Store Deactivated",
-        description: `Store preferences updated successfully.`,
+        title: 'Store connected',
+        description: 'You\'ll now see products from this store in your matches.',
       });
+
     } catch (error) {
-      console.error('Error updating store preference:', error);
+      console.error('Error managing store:', error);
       toast({
-        title: "Error",
-        description: "Failed to update store preferences.",
-        variant: "destructive",
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to manage store',
+        variant: 'destructive',
       });
+    } finally {
+      setIsProcessing(false);
     }
   };
 
-  const refreshStoreProducts = async (storeId: string, storeName: string) => {
-    try {
-      const { error } = await supabase.functions.invoke('fetch-store-products', {
-        body: { storeName },
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "Products Updated",
-        description: `Successfully refreshed products from ${storeName}.`,
-      });
-    } catch (error) {
-      console.error('Error refreshing store products:', error);
-      toast({
-        title: "Error",
-        description: "Failed to refresh store products.",
-        variant: "destructive",
-      });
-    }
-  };
+  if (error) {
+    return (
+      <div className="text-center p-8">
+        <h3 className="text-xl font-semibold text-red-600">Error Loading Stores</h3>
+        <p className="text-muted-foreground mt-2">{error instanceof Error ? error.message : 'Failed to load stores'}</p>
+      </div>
+    );
+  }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Store className="w-5 h-5" />
-          Store Management
-        </CardTitle>
-        <CardDescription>
-          Manage your connected stores and product updates
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {stores.map((store) => (
-          <div key={store.id} className="flex items-center justify-between p-4 border rounded-lg">
-            <div className="flex items-center gap-4">
-              {store.logo_url && (
-                <img 
-                  src={store.logo_url} 
-                  alt={store.name} 
-                  className="w-8 h-8 object-contain"
-                />
-              )}
-              <div>
-                <h3 className="font-medium">{store.name}</h3>
-                <p className="text-sm text-muted-foreground">{store.url}</p>
-              </div>
+    <div className="space-y-6 p-4 max-w-7xl mx-auto">
+      <div className="grid grid-cols-1 gap-6">
+        <section>
+          <h2 className="text-2xl font-semibold text-center mb-6">Supported Stores</h2>
+          {isLoading ? (
+            <div className="flex items-center justify-center p-8">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
-            <div className="flex items-center gap-4">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => refreshStoreProducts(store.id, store.name)}
-                title="Refresh Products"
-              >
-                <RefreshCw className="w-4 h-4" />
-              </Button>
-              <Switch
-                checked={store.is_active}
-                onCheckedChange={(checked) => toggleStore(store.id, checked)}
-              />
-            </div>
+          ) : stores?.length === 0 ? (
+            <Card className="p-6 text-center">
+              <Store className="h-12 w-12 mx-auto text-muted-foreground" />
+              <h3 className="text-lg font-medium mt-4">No stores available</h3>
+              <p className="text-muted-foreground mt-2">Please check back later for supported stores.</p>
+            </Card>
+          ) : (
+            <SupportedStoreList
+              stores={stores}
+              onStoreSelect={handleStoreSelect}
+              isProcessing={isProcessing}
+            />
+          )}
+        </section>
+
+        <section>
+          <h2 className="text-2xl font-semibold text-center mb-6">Add More Stores</h2>
+          <div className="grid grid-cols-1 gap-4">
+            <CustomStoreForm />
+            <StoreRequestForm />
           </div>
-        ))}
-      </CardContent>
-    </Card>
+        </section>
+      </div>
+    </div>
   );
 };
