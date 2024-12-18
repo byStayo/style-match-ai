@@ -2,41 +2,9 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { Database } from "@/integrations/supabase/types";
+import type { UserData } from "@/types/auth";
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
-
-export interface UserData {
-  email?: string | null;
-  displayName?: string | null;
-  photoURL?: string | null;
-  provider?: string;
-  isAnonymous?: boolean;
-  preferences: {
-    colors?: string[];
-    styles?: string[];
-    sizes?: string[];
-    [key: string]: any;
-  };
-  uploads: string[];
-  favorites: string[];
-  subscription_status?: string;
-  subscription_tier?: string;
-  openai_api_key?: string;
-  connectedAccounts?: {
-    instagram?: {
-      connected: boolean;
-      lastSync: string;
-    };
-    facebook?: {
-      connected: boolean;
-      lastSync: string;
-    };
-    tiktok?: {
-      connected: boolean;
-      lastSync: string;
-    };
-  };
-}
 
 export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -80,13 +48,17 @@ export const useAuth = () => {
 
       if (data) {
         setUserData({
+          id: userId, // Include the user ID
           email: user?.email,
           displayName: data.full_name,
           photoURL: data.avatar_url,
           preferences: data.preferences as UserData['preferences'] || {},
           uploads: [],  // We'll fetch these separately if needed
           favorites: [], // We'll fetch these separately if needed
-          connectedAccounts: {} // We'll fetch these separately if needed
+          connectedAccounts: {}, // We'll fetch these separately if needed
+          subscription_status: data.subscription_status,
+          subscription_tier: data.subscription_tier,
+          openai_api_key: data.openai_api_key
         });
       }
     } catch (error) {
