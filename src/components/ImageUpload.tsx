@@ -10,17 +10,18 @@ import { GuestAuthPrompt } from "./upload/GuestAuthPrompt";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 
 export const ImageUpload = () => {
   const [preview, setPreview] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [analysisProvider, setAnalysisProvider] = useState<'huggingface' | 'openai'>('openai');
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const [uploadCount, setUploadCount] = useState(0);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { userData } = useAuth();
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -39,14 +40,12 @@ export const ImageUpload = () => {
         throw new Error("Image size should be less than 5MB");
       }
 
-      // Create a unique file name
       const fileExt = file.name.split('.').pop();
       const fileName = `upload_${Math.random().toString(36).substring(2)}.${fileExt}`;
       const filePath = `uploads/${fileName}`;
 
       setUploadProgress(10);
 
-      // Upload to Supabase Storage
       const { error: uploadError, data: uploadData } = await supabase.storage
         .from('style-uploads')
         .upload(filePath, file);
@@ -55,7 +54,6 @@ export const ImageUpload = () => {
 
       setUploadProgress(30);
 
-      // Get the public URL
       const { data: { publicUrl } } = supabase.storage
         .from('style-uploads')
         .getPublicUrl(filePath);
@@ -63,13 +61,13 @@ export const ImageUpload = () => {
       setPreview(URL.createObjectURL(file));
       setUploadProgress(50);
       
-      console.log('Analyzing image with provider:', analysisProvider);
+      const selectedModel = userData?.preferences?.vision_model || 'gpt-4-vision';
+      console.log('Analyzing image with model:', selectedModel);
       
-      // Analyze the image
       const { data: analysisData, error: analysisError } = await supabase.functions.invoke('analyze-style', {
         body: { 
           imageUrl: publicUrl,
-          analysisProvider 
+          visionModel: selectedModel
         }
       });
 
@@ -81,7 +79,6 @@ export const ImageUpload = () => {
       console.log('Analysis result:', analysisData);
       setUploadProgress(80);
 
-      // Store the upload and analysis in the database
       const { data: sessionData } = await supabase.auth.getSession();
       if (sessionData.session?.user) {
         const { error: styleUploadError } = await supabase
@@ -93,7 +90,7 @@ export const ImageUpload = () => {
             embedding: analysisData.analysis.embedding,
             metadata: {
               style_tags: analysisData.analysis.style_tags,
-              analysis_provider: analysisProvider,
+              vision_model: selectedModel,
               ...analysisData.analysis.metadata
             }
           });
@@ -104,7 +101,6 @@ export const ImageUpload = () => {
       setUploadProgress(100);
       setUploadCount(prev => prev + 1);
       
-      // Check if user has reached the trial limit
       if (!sessionData.session?.user && uploadCount >= 2) {
         setShowAuthPrompt(true);
         toast({
@@ -116,7 +112,6 @@ export const ImageUpload = () => {
           title: "Upload successful!",
           description: "Your image has been analyzed. We'll show you matching items.",
         });
-        // Navigate to show matches
         navigate("/matches");
       }
 
@@ -136,10 +131,7 @@ export const ImageUpload = () => {
   return (
     <Card className="w-full max-w-md mx-auto p-6">
       <div className="space-y-6">
-        <AnalysisProviderSelect 
-          value={analysisProvider}
-          onChange={(value) => setAnalysisProvider(value)}
-        />
+        <AnalysisProviderSelect />
 
         <div className="relative border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-primary transition-colors">
           <input

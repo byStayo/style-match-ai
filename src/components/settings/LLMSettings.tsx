@@ -1,55 +1,57 @@
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Brain, Key, Save, Sparkles, Zap, Clock, Star } from "lucide-react";
+import { Eye, Camera, ScanFace, Image, Save } from "lucide-react";
 
-interface ModelOption {
+interface VisionModel {
   id: string;
   name: string;
   description: string;
-  type: 'fast' | 'balanced' | 'powerful';
+  provider: 'openai' | 'anthropic' | 'google' | 'huggingface';
   icon: JSX.Element;
+  requiresKey?: boolean;
 }
 
-const MODEL_OPTIONS: ModelOption[] = [
+const VISION_MODELS: VisionModel[] = [
   {
-    id: "gpt-4o-mini",
-    name: "GPT-4 Mini",
-    description: "Fast and efficient for basic style analysis",
-    type: 'fast',
-    icon: <Zap className="w-4 h-4 text-yellow-500" />
-  },
-  {
-    id: "gpt-4o",
-    name: "GPT-4 Optimized",
-    description: "Best quality for detailed style analysis",
-    type: 'powerful',
-    icon: <Star className="w-4 h-4 text-purple-500" />
-  },
-  {
-    id: "gpt-4o-turbo",
-    name: "GPT-4 Turbo",
-    description: "Balanced performance and quality",
-    type: 'balanced',
-    icon: <Clock className="w-4 h-4 text-blue-500" />
-  },
-  {
-    id: "gpt-4o-vision",
+    id: "gpt-4-vision",
     name: "GPT-4 Vision",
-    description: "Specialized in visual style analysis",
-    type: 'powerful',
-    icon: <Brain className="w-4 h-4 text-green-500" />
+    description: "Best quality for detailed style analysis",
+    provider: 'openai',
+    icon: <Eye className="w-4 h-4 text-blue-500" />,
+    requiresKey: true
+  },
+  {
+    id: "claude-3-vision",
+    name: "Claude 3 Vision",
+    description: "High quality vision analysis with detailed descriptions",
+    provider: 'anthropic',
+    icon: <Camera className="w-4 h-4 text-purple-500" />,
+    requiresKey: true
+  },
+  {
+    id: "gemini-vision",
+    name: "Gemini Vision Pro",
+    description: "Google's advanced vision model for style analysis",
+    provider: 'google',
+    icon: <ScanFace className="w-4 h-4 text-green-500" />,
+    requiresKey: true
+  },
+  {
+    id: "hf-microsoft-git",
+    name: "Microsoft GIT",
+    description: "Efficient open-source vision model",
+    provider: 'huggingface',
+    icon: <Image className="w-4 h-4 text-yellow-500" />
   }
 ];
 
 export const LLMSettings = () => {
-  const [apiKey, setApiKey] = useState("");
-  const [selectedModel, setSelectedModel] = useState("gpt-4o");
+  const [selectedModel, setSelectedModel] = useState("gpt-4-vision");
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
   const { user, userData } = useAuth();
@@ -69,10 +71,9 @@ export const LLMSettings = () => {
       const { error } = await supabase
         .from('profiles')
         .update({ 
-          openai_api_key: apiKey,
           preferences: {
             ...userData?.preferences,
-            llm_model: selectedModel
+            vision_model: selectedModel
           }
         })
         .eq('id', user.id);
@@ -81,9 +82,8 @@ export const LLMSettings = () => {
 
       toast({
         title: "Settings Saved",
-        description: "Your LLM settings have been updated successfully.",
+        description: "Your vision model preferences have been updated successfully.",
       });
-      setApiKey("");
     } catch (error) {
       console.error('Error saving settings:', error);
       toast({
@@ -100,28 +100,28 @@ export const LLMSettings = () => {
     <Card className="mb-6">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Brain className="w-5 h-5" />
-          Language Model Settings
+          <Eye className="w-5 h-5" />
+          Vision Model Settings
         </CardTitle>
         <CardDescription>
-          Configure your AI model preferences and API keys for style analysis
+          Configure your preferred AI vision model for style analysis
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="space-y-4">
-          <label className="text-sm font-medium">Model Selection</label>
+          <label className="text-sm font-medium">Vision Model Selection</label>
           <Select
             value={selectedModel}
             onValueChange={setSelectedModel}
           >
             <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select LLM model" />
+              <SelectValue placeholder="Select vision model" />
             </SelectTrigger>
             <SelectContent>
-              {MODEL_OPTIONS.map((model) => (
+              {VISION_MODELS.map((model) => (
                 <SelectItem 
                   key={model.id} 
-                  value={model.id} 
+                  value={model.id}
                   className="flex items-center gap-2"
                 >
                   <div className="flex items-center gap-2">
@@ -129,6 +129,7 @@ export const LLMSettings = () => {
                     <div>
                       <p className="font-medium">{model.name}</p>
                       <p className="text-xs text-muted-foreground">{model.description}</p>
+                      <p className="text-xs text-muted-foreground">Provider: {model.provider}</p>
                     </div>
                   </div>
                 </SelectItem>
@@ -136,36 +137,18 @@ export const LLMSettings = () => {
             </SelectContent>
           </Select>
           <p className="text-sm text-muted-foreground">
-            Choose the model that best fits your style analysis needs
+            Choose the vision model that best fits your style analysis needs
           </p>
         </div>
 
-        <div className="space-y-2">
-          <label className="text-sm font-medium flex items-center gap-2">
-            <Key className="w-4 h-4" />
-            OpenAI API Key
-          </label>
-          <div className="flex gap-2">
-            <Input
-              type="password"
-              placeholder="sk-..."
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              className="flex-1"
-            />
-            <Button 
-              onClick={handleSaveSettings} 
-              disabled={isSaving}
-              className="gap-2"
-            >
-              <Save className="w-4 h-4" />
-              Save
-            </Button>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Your API key is stored securely and used for style analysis
-          </p>
-        </div>
+        <Button 
+          onClick={handleSaveSettings} 
+          disabled={isSaving}
+          className="w-full gap-2"
+        >
+          <Save className="w-4 h-4" />
+          Save Preferences
+        </Button>
       </CardContent>
     </Card>
   );
