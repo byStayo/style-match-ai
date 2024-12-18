@@ -5,7 +5,7 @@ import { fetchZaraProducts } from './stores/zara.ts';
 import { fetchHMProducts } from './stores/hm.ts';
 import { fetchUniqloProducts } from './stores/uniqlo.ts';
 import { analyzeProductImage } from './analysis.ts';
-import type { Product, StoreProduct } from './types.ts';
+import type { Product } from './types.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,10 +13,12 @@ const corsHeaders = {
 };
 
 async function fetchProductsFromStore(storeName: string): Promise<Product[]> {
+  console.log('Fetching products for store:', storeName);
+  
   switch (storeName.toLowerCase()) {
     case 'zara':
       return await fetchZaraProducts();
-    case 'hm':
+    case 'h&m':
       return await fetchHMProducts();
     case 'uniqlo':
       return await fetchUniqloProducts();
@@ -32,7 +34,7 @@ serve(async (req) => {
   }
 
   try {
-    const { storeName, analysisProvider = 'huggingface' } = await req.json();
+    const { storeName, analysisProvider = 'huggingface', useCustomKey = false } = await req.json();
     
     if (!storeName) {
       throw new Error('Store name is required');
@@ -44,16 +46,44 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
+    // If using custom key, get the user's API key
+    let openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+    if (useCustomKey) {
+      const authHeader = req.headers.get('Authorization');
+      if (!authHeader) throw new Error('Authorization required for custom key usage');
+      
+      const token = authHeader.replace('Bearer ', '');
+      const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+      if (authError || !user) throw new Error('Authentication failed');
+
+      const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('openai_api_key')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile?.openai_api_key) {
+        throw new Error('OpenAI API key not configured in your profile');
+      }
+
+      openaiApiKey = profile.openai_api_key;
+    }
+
     // Fetch products from store
     console.log('Fetching products from store:', storeName);
     const products = await fetchProductsFromStore(storeName);
+    console.log(`Found ${products.length} products`);
 
     // Process each product
     for (const product of products) {
       console.log('Processing product:', product.title);
       
       // Analyze product image
-      const analysis = await analyzeProductImage(product.image, analysisProvider);
+      const analysis = await analyzeProductImage(
+        product.image,
+        analysisProvider,
+        useCustomKey ? openaiApiKey : undefined
+      );
 
       // Save to products table
       const { error: productError } = await supabaseAdmin

@@ -1,15 +1,21 @@
 import { HfInference } from 'https://esm.sh/@huggingface/inference@2.3.2';
-import { Product } from './types.ts';
 
 export async function analyzeProductImage(
   imageUrl: string, 
-  analysisProvider: 'huggingface' | 'openai'
+  analysisProvider: 'huggingface' | 'openai',
+  customOpenAIKey?: string
 ): Promise<{
   embedding: number[];
   styleTags: string[];
 }> {
+  console.log('Analyzing product image:', {
+    url: imageUrl,
+    provider: analysisProvider,
+    usingCustomKey: !!customOpenAIKey
+  });
+
   if (analysisProvider === 'openai') {
-    const openaiKey = Deno.env.get('OPENAI_API_KEY');
+    const openaiKey = customOpenAIKey || Deno.env.get('OPENAI_API_KEY');
     if (!openaiKey) throw new Error('OpenAI API key not configured');
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -19,7 +25,7 @@ export async function analyzeProductImage(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gpt-4-vision-preview',
         messages: [
           {
             role: 'user',
@@ -39,14 +45,38 @@ export async function analyzeProductImage(
       }),
     });
 
+    if (!response.ok) {
+      const error = await response.text();
+      console.error('OpenAI API error:', error);
+      throw new Error('Failed to analyze image with OpenAI');
+    }
+
     const data = await response.json();
     const analysis = JSON.parse(data.choices[0].message.content);
-    
-    // Generate a simple embedding (in production, use a proper embedding model)
-    const embedding = new Array(512).fill(0);
+
+    // Generate embeddings
+    const embeddingResponse = await fetch('https://api.openai.com/v1/embeddings', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openaiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'text-embedding-3-small',
+        input: JSON.stringify(analysis.tags),
+      }),
+    });
+
+    if (!embeddingResponse.ok) {
+      const error = await embeddingResponse.text();
+      console.error('OpenAI Embedding API error:', error);
+      throw new Error('Failed to generate embeddings');
+    }
+
+    const embeddingData = await embeddingResponse.json();
     
     return {
-      embedding,
+      embedding: embeddingData.data[0].embedding,
       styleTags: analysis.tags,
     };
   } else {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,20 +12,38 @@ import {
   DialogTrigger,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Plus, Key } from "lucide-react";
+import { Key, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export const CustomStoreForm = () => {
   const { toast } = useToast();
   const [storeName, setStoreName] = useState("");
   const [storeUrl, setStoreUrl] = useState("");
-  const [apiKey, setApiKey] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hasApiKey, setHasApiKey] = useState(false);
+
+  useEffect(() => {
+    const checkApiKey = async () => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData?.session?.user) return;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('openai_api_key')
+        .eq('id', sessionData.session.user.id)
+        .single();
+
+      setHasApiKey(!!profile?.openai_api_key);
+    };
+
+    checkApiKey();
+  }, []);
 
   const handleAddCustomStore = async () => {
-    if (!storeName || !storeUrl || !apiKey) {
+    if (!storeName || !storeUrl) {
       toast({
         title: "Missing information",
-        description: "Please provide store name, URL, and API key",
+        description: "Please provide store name and URL",
         variant: "destructive",
       });
       return;
@@ -41,13 +59,24 @@ export const CustomStoreForm = () => {
       const { error } = await supabase.from('stores').insert({
         name: storeName,
         url: storeUrl,
-        integration_type: 'api',
+        integration_type: 'custom',
         is_active: true,
-        api_key: apiKey,
-        owner_id: sessionData.session.user.id
+        owner_id: sessionData.session.user.id,
+        is_official: false
       });
 
       if (error) throw error;
+
+      // Trigger initial product fetch using the user's API key
+      const { error: fetchError } = await supabase.functions.invoke('fetch-store-products', {
+        body: { 
+          storeName,
+          analysisProvider: 'openai',
+          useCustomKey: true 
+        }
+      });
+
+      if (fetchError) throw fetchError;
 
       toast({
         title: "Store added",
@@ -56,7 +85,6 @@ export const CustomStoreForm = () => {
 
       setStoreName("");
       setStoreUrl("");
-      setApiKey("");
     } catch (error) {
       console.error('Error adding custom store:', error);
       toast({
@@ -68,6 +96,18 @@ export const CustomStoreForm = () => {
       setIsSubmitting(false);
     }
   };
+
+  if (!hasApiKey) {
+    return (
+      <Alert variant="destructive" className="mb-4">
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>
+          You need to configure your OpenAI API key in settings to add custom stores.
+          This ensures product analysis costs are charged to your account.
+        </AlertDescription>
+      </Alert>
+    );
+  }
 
   return (
     <Dialog>
@@ -85,7 +125,7 @@ export const CustomStoreForm = () => {
         <DialogHeader>
           <DialogTitle>Add Custom Store</DialogTitle>
           <DialogDescription>
-            Add a store using your own API key. API usage costs will be charged to your key.
+            Add a store using your own OpenAI API key. Analysis costs will be charged to your key.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
@@ -107,22 +147,12 @@ export const CustomStoreForm = () => {
               placeholder="https://example.com"
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="api-key">Store API Key</Label>
-            <Input
-              id="api-key"
-              type="password"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder="Enter your API key"
-            />
-          </div>
           <Button 
             onClick={handleAddCustomStore} 
             className="w-full"
             disabled={isSubmitting}
           >
-            Add Store
+            {isSubmitting ? "Adding Store..." : "Add Store"}
           </Button>
         </div>
       </DialogContent>

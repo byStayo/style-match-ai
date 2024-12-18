@@ -216,35 +216,93 @@ export type Database = {
           },
         ]
       }
+      store_requests: {
+        Row: {
+          created_at: string | null
+          id: string
+          notes: string | null
+          status: Database["public"]["Enums"]["store_request_status"]
+          store_name: string
+          store_url: string
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          status?: Database["public"]["Enums"]["store_request_status"]
+          store_name: string
+          store_url: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          status?: Database["public"]["Enums"]["store_request_status"]
+          store_name?: string
+          store_url?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stores: {
         Row: {
+          api_key: string | null
           created_at: string
           id: string
           integration_type: Database["public"]["Enums"]["store_type"]
           is_active: boolean | null
+          is_official: boolean | null
           logo_url: string | null
           name: string
+          owner_id: string | null
           url: string
         }
         Insert: {
+          api_key?: string | null
           created_at?: string
           id?: string
           integration_type: Database["public"]["Enums"]["store_type"]
           is_active?: boolean | null
+          is_official?: boolean | null
           logo_url?: string | null
           name: string
+          owner_id?: string | null
           url: string
         }
         Update: {
+          api_key?: string | null
           created_at?: string
           id?: string
           integration_type?: Database["public"]["Enums"]["store_type"]
           is_active?: boolean | null
+          is_official?: boolean | null
           logo_url?: string | null
           name?: string
+          owner_id?: string | null
           url?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "stores_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       style_matches: {
         Row: {
@@ -568,6 +626,7 @@ export type Database = {
     }
     Enums: {
       social_platform: "instagram" | "facebook" | "tiktok"
+      store_request_status: "pending" | "approved" | "rejected"
       store_type: "api" | "scrape"
       subscription_tier: "free" | "premium"
       upload_type: "clothing" | "selfie" | "inspiration" | "social"
