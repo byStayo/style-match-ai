@@ -45,7 +45,15 @@ export const StyleGrid = () => {
   };
 
   const handleRefresh = async () => {
-    if (!userData?.id) return;
+    if (!userData?.id) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to refresh matches.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setIsRefreshing(true);
     try {
       await fetchMatches(sortBy);
