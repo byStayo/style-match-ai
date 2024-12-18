@@ -1,16 +1,12 @@
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
-import { computeCosineSimilarity } from '../_shared/similarity.ts';
+import { calculateMatchScore } from './scoring.ts';
+import { MatchResult, UserPreferences, MatchOptions } from './types.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
-
-const STYLE_MATCH_WEIGHT = 0.6;
-const PRICE_MATCH_WEIGHT = 0.2;
-const TAG_MATCH_WEIGHT = 0.2;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -18,13 +14,18 @@ serve(async (req) => {
   }
 
   try {
-    const { styleUploadId, minSimilarity = 0.7, limit = 20, storeFilter = [] } = await req.json();
+    const { 
+      styleUploadId, 
+      minSimilarity = 0.7, 
+      limit = 20,
+      options = {} as MatchOptions
+    } = await req.json();
     
     if (!styleUploadId) {
       throw new Error('Style upload ID is required');
     }
 
-    console.log('Finding matches:', { styleUploadId, minSimilarity, limit, storeFilter });
+    console.log('Finding matches:', { styleUploadId, minSimilarity, limit, options });
     
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -43,14 +44,19 @@ serve(async (req) => {
       throw new Error('Style upload not found or has no embedding');
     }
 
-    // Get user's price preferences
+    // Get user preferences
     const { data: userProfile } = await supabase
       .from('profiles')
       .select('preferences')
       .eq('id', styleUpload.user_id)
       .single();
 
-    const pricePreferences = userProfile?.preferences?.price_range || { min: 0, max: 1000 };
+    const userPrefs: UserPreferences = {
+      priceRange: userProfile?.preferences?.price_range || { min: 0, max: 1000 },
+      stylePreferences: userProfile?.preferences?.style_preferences || [],
+      colorPreferences: userProfile?.preferences?.color_preferences || [],
+      occasionPreferences: userProfile?.preferences?.occasion_preferences || []
+    };
 
     // Get products with embeddings
     const { data: products, error: productsError } = await supabase
@@ -65,49 +71,24 @@ serve(async (req) => {
 
     console.log(`Found ${products?.length || 0} products with embeddings`);
 
-    // Calculate similarity scores and filter matches
-    const matches = products
+    // Calculate match scores
+    const matches: MatchResult[] = products
       .map(product => {
-        // Calculate embedding similarity
-        const embeddingSimilarity = computeCosineSimilarity(
+        const scores = calculateMatchScore(
           styleUpload.embedding,
-          product.style_embedding
-        );
-
-        // Calculate style tag match
-        const styleTagMatch = calculateStyleTagMatch(
-          product.style_tags,
-          styleUpload.metadata?.style_tags || []
-        );
-
-        // Calculate price match
-        const priceMatch = calculatePriceMatch(
-          product.product_price,
-          pricePreferences
-        );
-
-        // Calculate weighted score
-        const weightedScore = (
-          embeddingSimilarity * STYLE_MATCH_WEIGHT +
-          styleTagMatch * TAG_MATCH_WEIGHT +
-          priceMatch * PRICE_MATCH_WEIGHT
+          product,
+          userPrefs,
+          options
         );
 
         return {
           ...product,
-          similarity: weightedScore,
-          confidence_scores: {
-            style_match: embeddingSimilarity,
-            tag_match: styleTagMatch,
-            price_match: priceMatch
-          }
+          ...scores,
+          explanation: generateMatchExplanation(scores)
         };
       })
-      .filter(match => 
-        match.similarity >= minSimilarity &&
-        (storeFilter.length === 0 || storeFilter.includes(match.store_name))
-      )
-      .sort((a, b) => b.similarity - a.similarity)
+      .filter(match => match.totalScore >= minSimilarity)
+      .sort((a, b) => b.totalScore - a.totalScore)
       .slice(0, limit);
 
     console.log(`Found ${matches.length} matches above similarity threshold`);
@@ -115,22 +96,15 @@ serve(async (req) => {
     // Store matches
     const matchInserts = matches.map(match => ({
       user_id: styleUpload.user_id,
-      product_url: match.product_url,
-      product_image: match.product_image,
-      product_title: match.product_title,
-      product_price: match.product_price,
-      store_name: match.store_name,
-      match_score: match.similarity,
-      match_explanation: generateMatchExplanation(match)
+      product_id: match.id,
+      match_score: match.totalScore,
+      match_explanation: match.explanation,
+      created_at: new Date().toISOString()
     }));
 
-    const { error: insertError } = await supabase
-      .from('product_matches')
+    await supabase
+      .from('style_matches')
       .upsert(matchInserts);
-
-    if (insertError) {
-      console.error('Error inserting matches:', insertError);
-    }
 
     return new Response(
       JSON.stringify({ matches }),
@@ -146,48 +120,28 @@ serve(async (req) => {
   }
 });
 
-function calculateStyleTagMatch(productTags: string[], userTags: string[]): number {
-  if (!productTags?.length || !userTags?.length) return 0.5;
-  const commonTags = productTags.filter(tag => userTags.includes(tag));
-  return commonTags.length / Math.max(productTags.length, userTags.length);
-}
-
-function calculatePriceMatch(price: number, prefs: { min: number; max: number }): number {
-  if (!price || !prefs) return 1.0;
-  if (price >= prefs.min && price <= prefs.max) return 1.0;
+function generateMatchExplanation(scores: any): string {
+  const parts = [];
   
-  const midPoint = (prefs.min + prefs.max) / 2;
-  const maxDiff = prefs.max - prefs.min;
-  const actualDiff = Math.abs(price - midPoint);
-  
-  return Math.max(0, 1 - (actualDiff / maxDiff));
-}
-
-function generateMatchExplanation(match: any): string {
-  const scores = match.confidence_scores;
-  const styleMatch = Math.round(scores.style_match * 100);
-  const priceMatch = Math.round(scores.price_match * 100);
-  const tagMatch = Math.round(scores.tag_match * 100);
-  
-  let explanation = `This item matches your style with ${styleMatch}% confidence. `;
-  
-  if (styleMatch > 80) {
-    explanation += `It's a perfect match for your style preferences! `;
-  } else if (styleMatch > 60) {
-    explanation += `It aligns well with your style preferences. `;
+  if (scores.styleScore > 0.8) {
+    parts.push("Strongly matches your style preferences");
+  } else if (scores.styleScore > 0.6) {
+    parts.push("Aligns well with your style");
   }
   
-  if (priceMatch > 90) {
-    explanation += `The price is right within your preferred range. `;
-  } else if (priceMatch > 70) {
-    explanation += `The price is close to your preferred range. `;
+  if (scores.colorScore > 0.8) {
+    parts.push("Perfect color match");
+  } else if (scores.colorScore > 0.6) {
+    parts.push("Compatible colors");
   }
   
-  if (tagMatch > 80) {
-    explanation += `It matches your preferred style categories perfectly.`;
-  } else if (tagMatch > 60) {
-    explanation += `It shares several style categories with your preferences.`;
+  if (scores.priceScore > 0.8) {
+    parts.push("Within your ideal price range");
   }
   
-  return explanation;
+  if (scores.occasionScore > 0.8) {
+    parts.push("Perfect for your preferred occasions");
+  }
+  
+  return parts.join(". ") + ".";
 }
