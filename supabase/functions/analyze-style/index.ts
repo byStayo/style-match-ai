@@ -20,7 +20,11 @@ serve(async (req) => {
       throw new Error('No provider specified');
     }
 
-    console.log('Starting analysis with provider:', provider, 'model:', visionModel);
+    console.log('Starting analysis:', {
+      provider,
+      model: visionModel,
+      imageUrl
+    });
     
     let styleAnalysis;
     try {
@@ -32,10 +36,8 @@ serve(async (req) => {
           styleAnalysis = await analyzeWithOpenAI(imageUrl, visionModel);
           break;
         case 'anthropic':
-          // TODO: Implement Claude vision analysis
           throw new Error('Claude vision analysis not yet implemented');
         case 'google':
-          // TODO: Implement Gemini vision analysis
           throw new Error('Gemini vision analysis not yet implemented');
         default:
           throw new Error('Invalid analysis provider');
@@ -44,6 +46,12 @@ serve(async (req) => {
       console.error('Analysis failed:', analysisError);
       throw new Error(`Analysis failed: ${analysisError.message}`);
     }
+
+    console.log('Analysis completed successfully:', {
+      hasStyleTags: !!styleAnalysis.style_tags,
+      hasEmbedding: !!styleAnalysis.embedding,
+      hasMetadata: !!styleAnalysis.metadata
+    });
 
     return new Response(
       JSON.stringify({ success: true, analysis: styleAnalysis }),
