@@ -39,12 +39,12 @@ export const ImageUploader = () => {
   }, [handleFileUpload, navigate, toast]);
 
   return (
-    <Card className="w-full max-w-md mx-auto p-6 shadow-md">
-      <div className="space-y-6">
+    <Card className="w-full max-w-xl mx-auto mt-8 overflow-hidden bg-gradient-to-br from-background to-accent/10 border-2 hover:border-accent/20 transition-all duration-300">
+      <div className="p-8 space-y-8">
         <AnalysisProviderSelect />
 
         <div 
-          className="relative border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-primary transition-colors cursor-pointer"
+          className="relative border-2 border-dashed border-accent/30 rounded-xl p-8 text-center hover:border-accent/50 transition-all duration-300 cursor-pointer bg-background/50 backdrop-blur-sm"
           role="button"
           tabIndex={0}
         >

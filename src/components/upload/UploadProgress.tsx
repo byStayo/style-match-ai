@@ -7,12 +7,12 @@ interface UploadProgressProps {
 
 export const UploadProgress = ({ progress }: UploadProgressProps) => {
   return (
-    <div className="space-y-4">
-      <div className="mx-auto w-12 h-12 text-primary">
+    <div className="space-y-6">
+      <div className="mx-auto w-16 h-16 text-accent">
         <Loader2 className="w-full h-full animate-spin" />
       </div>
-      <Progress value={progress} className="w-full" />
-      <p className="text-sm text-gray-500">
+      <Progress value={progress} className="w-full h-2 bg-accent/20" />
+      <p className="text-sm text-muted-foreground animate-pulse">
         {progress < 100 
           ? "Uploading and processing your image..." 
           : "Finalizing..."}
