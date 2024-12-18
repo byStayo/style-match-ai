@@ -11,11 +11,13 @@ import { StoreRequestForm } from './StoreRequestForm';
 
 export const StoreManagement = () => {
   const [isProcessing, setIsProcessing] = useState(false);
+  const [selectedStores, setSelectedStores] = useState<string[]>([]);
   const { toast } = useToast();
 
   const { data: stores, isLoading, error } = useQuery({
     queryKey: ['stores'],
     queryFn: async () => {
+      console.log('Fetching stores...');
       const { data, error } = await supabase
         .from('stores')
         .select('*')
@@ -23,9 +25,30 @@ export const StoreManagement = () => {
         .order('name');
 
       if (error) throw error;
+      console.log('Fetched stores:', data);
       return data;
     }
   });
+
+  // Load user's selected stores
+  useEffect(() => {
+    const loadUserStores = async () => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData?.session?.user) return;
+
+      const { data: preferences } = await supabase
+        .from('user_store_preferences')
+        .select('store_id')
+        .eq('user_id', sessionData.session.user.id)
+        .eq('is_favorite', true);
+
+      if (preferences) {
+        setSelectedStores(preferences.map(pref => pref.store_id));
+      }
+    };
+
+    loadUserStores();
+  }, []);
 
   const handleStoreSelect = async (storeId: string, storeName: string) => {
     try {
@@ -69,6 +92,13 @@ export const StoreManagement = () => {
           });
 
         if (prefError) throw prefError;
+
+        // Update local state
+        setSelectedStores(prev => 
+          prev.includes(storeId) 
+            ? prev.filter(id => id !== storeId)
+            : [...prev, storeId]
+        );
       }
 
       toast({
@@ -115,6 +145,7 @@ export const StoreManagement = () => {
           ) : (
             <SupportedStoreList
               stores={stores}
+              selectedStores={selectedStores}
               onStoreSelect={handleStoreSelect}
               isProcessing={isProcessing}
             />
