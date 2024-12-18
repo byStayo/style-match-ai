@@ -5,7 +5,6 @@ import { scrapeAsos } from './asos';
 import { scrapeMango } from './mango';
 import { scrapeNike } from './nike';
 import { scrapeNordstrom } from './nordstrom';
-import { scrapeUniqlo } from './uniqlo';
 
 export async function scrapeStore(store: Store): Promise<Product[]> {
   console.log(`Scraping ${store.name} using ${store.integration_type}`);
@@ -24,8 +23,6 @@ export async function scrapeStore(store: Store): Promise<Product[]> {
         return await scrapeNike();
       case 'nordstrom':
         return await scrapeNordstrom();
-      case 'uniqlo':
-        return await scrapeUniqlo();
       default:
         throw new Error(`Scraper not implemented for ${store.name}`);
     }
