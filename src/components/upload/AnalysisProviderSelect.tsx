@@ -15,10 +15,13 @@ export const AnalysisProviderSelect = ({ value, onChange }: AnalysisProviderSele
           <SelectValue placeholder="Select analysis provider" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="huggingface">Hugging Face (Default)</SelectItem>
-          <SelectItem value="openai">OpenAI Vision</SelectItem>
+          <SelectItem value="openai">OpenAI Vision (Recommended)</SelectItem>
+          <SelectItem value="huggingface">Hugging Face</SelectItem>
         </SelectContent>
       </Select>
+      <p className="text-sm text-muted-foreground mt-1">
+        OpenAI Vision provides more detailed style analysis
+      </p>
     </div>
   );
 };

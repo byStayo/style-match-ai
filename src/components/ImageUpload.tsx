@@ -16,7 +16,7 @@ export const ImageUpload = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [analysisProvider, setAnalysisProvider] = useState<'huggingface' | 'openai'>('huggingface');
+  const [analysisProvider, setAnalysisProvider] = useState<'huggingface' | 'openai'>('openai');
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const [uploadCount, setUploadCount] = useState(0);
   const { toast } = useToast();
@@ -47,13 +47,13 @@ export const ImageUpload = () => {
       setUploadProgress(10);
 
       // Upload to Supabase Storage
-      const { error: uploadError } = await supabase.storage
+      const { error: uploadError, data: uploadData } = await supabase.storage
         .from('style-uploads')
         .upload(filePath, file);
 
       if (uploadError) throw uploadError;
 
-      setUploadProgress(50);
+      setUploadProgress(30);
 
       // Get the public URL
       const { data: { publicUrl } } = supabase.storage
@@ -61,22 +61,47 @@ export const ImageUpload = () => {
         .getPublicUrl(filePath);
 
       setPreview(URL.createObjectURL(file));
+      setUploadProgress(50);
       
       // Analyze the image
-      const { error: analysisError } = await supabase.functions.invoke('analyze-style', {
+      const { data: analysisData, error: analysisError } = await supabase.functions.invoke('analyze-style', {
         body: { 
           imageUrl: publicUrl,
           analysisProvider 
         }
       });
 
-      if (analysisError) throw analysisError;
+      if (analysisError) {
+        console.error('Analysis error:', analysisError);
+        throw new Error('Failed to analyze image: ' + analysisError.message);
+      }
+
+      setUploadProgress(80);
+
+      // Store the upload and analysis in the database
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (sessionData.session?.user) {
+        const { error: styleUploadError } = await supabase
+          .from('style_uploads')
+          .insert({
+            user_id: sessionData.session.user.id,
+            image_url: publicUrl,
+            upload_type: 'clothing',
+            embedding: analysisData.analysis.embedding,
+            metadata: {
+              style_tags: analysisData.analysis.style_tags,
+              analysis_provider: analysisProvider,
+              ...analysisData.analysis.metadata
+            }
+          });
+
+        if (styleUploadError) throw styleUploadError;
+      }
 
       setUploadProgress(100);
       setUploadCount(prev => prev + 1);
       
       // Check if user has reached the trial limit
-      const { data: sessionData } = await supabase.auth.getSession();
       if (!sessionData.session?.user && uploadCount >= 2) {
         setShowAuthPrompt(true);
         toast({
