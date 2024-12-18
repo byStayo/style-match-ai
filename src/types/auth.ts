@@ -11,4 +11,6 @@ export interface UserData {
       max: number;
     };
   };
+  upload_count?: number;
+  subscription_tier?: string;
 }
