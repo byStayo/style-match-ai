@@ -61,10 +61,9 @@ export const ImageUpload = () => {
       setPreview(URL.createObjectURL(file));
       setUploadProgress(50);
       
-      const selectedModel = userData?.preferences?.vision_model || 'gpt-4-vision';
-      const provider = selectedModel.includes('gpt') ? 'openai' : 
-                      selectedModel.includes('claude') ? 'anthropic' :
-                      selectedModel.includes('gemini') ? 'google' : 'huggingface';
+      // Use gpt-4o for premium users, gpt-4o-mini for free users
+      const selectedModel = userData?.subscription_tier === 'premium' ? 'gpt-4o' : 'gpt-4o-mini';
+      const provider = 'openai';
       
       console.log('Analyzing image with model:', selectedModel, 'provider:', provider);
       

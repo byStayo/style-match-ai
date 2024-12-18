@@ -1,6 +1,6 @@
 import { StyleAnalysis } from '../_shared/types.ts';
 
-export async function analyzeWithOpenAI(imageUrl: string, model = 'gpt-4-vision-preview'): Promise<StyleAnalysis> {
+export async function analyzeWithOpenAI(imageUrl: string, model = 'gpt-4o-mini'): Promise<StyleAnalysis> {
   const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
   if (!openAIApiKey) {
     throw new Error('OpenAI API key not configured');
@@ -17,7 +17,7 @@ export async function analyzeWithOpenAI(imageUrl: string, model = 'gpt-4-vision-
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: "gpt-4-vision-preview",
+        model: model, // Use the model passed in, defaulting to gpt-4o-mini
         messages: [
           {
             role: 'system',
@@ -110,7 +110,7 @@ export async function analyzeWithOpenAI(imageUrl: string, model = 'gpt-4-vision-
       confidence_scores: null,
       metadata: {
         provider: 'openai',
-        model: "gpt-4-vision-preview",
+        model: model,
         description: description,
         style_categories: parsedAnalysis.style_categories,
         key_features: parsedAnalysis.key_features,
